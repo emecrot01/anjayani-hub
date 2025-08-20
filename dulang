@@ -1,0 +1,538 @@
+-- Booting Rayfield UI Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- Notif Startup
+Rayfield:Notify({
+    Title = "Sabar Ya Anj",
+    Content = "Loading 🗿🖕🏻",
+    Duration = 5,
+})
+ 
+-- Window
+local Window = Rayfield:CreateWindow({
+    Name = "Mammoth Prospecting! 💎",
+    LoadingTitle = "Prospecting! 💎",
+    LoadingSubtitle = "Aku Lah Sang Penggali 🗿⛏️",
+    ConfigurationSaving = { Enabled = false }
+})
+ 
+-- TAB 1: Home 🏠
+local TabHome = Window:CreateTab("Home 🏠")
+ 
+TabHome:CreateLabel("Prospecting! 💎 v1.2")
+ 
+TabHome:CreateSection("Changelog")
+ 
+TabHome:CreateParagraph({
+    Title = "Prospecting! 💎 v1.2",
+    Content = [[
+🎉 Fitur Yang Tersedia:
+• Auto Farm ⛏️
+  Save Sand ⛱️/Water 🌊 Position
+• Walk System 👟
+  Pilih Salah Satu (Walk 👟/Smooth Teleport ⚡️/Instant Teleport ⚡️⚡️)
+• Auto Farming (Toggle) ⛏️
+  Tinggal Aktifin Doang 🗿
+• Auto Collect + Shake ⛏️💧
+  Kalo lu Pen Gali + Pan Doang, aktifin ini🗿
+• Auto Sell 💰 
+  Sistem Sell Sudah Di Buat Per Rarity (Toggle)
+• Auto Favorite 🌟
+  Sistem Sama Seperti Sell (Toggle) + Unlock All 🔓
+
+🛠️ Fixed
+• Menambahkan Delay System Untuk Auto Farm (Smooth TP, Instant TP)
+• Menambahkan Delay System Untuk Auto Sell
+• Menambahkan Delay System Untuk Auto Lock
+    ]]
+})
+
+-- TAB 2: Auto Farm ⛏️
+local TabFarm = Window:CreateTab("Auto Farm ⛏️")
+
+-- // Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local LocalPlayer = Players.LocalPlayer
+
+-- // Helpers
+local function character() return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait() end
+local function HRP() local c=character() return c and c:FindFirstChild("HumanoidRootPart") end
+local function Humanoid() local c=character() return c and c:FindFirstChildOfClass("Humanoid") end
+
+-- // State
+local savedSandCF, savedWaterCF = nil, nil
+local movementMethod = "Walk 👟"
+local autoFarm, autoHelper = false, false
+
+-- // Utils
+local function notify(title, content, dur)
+    Rayfield:Notify({Title=title, Content=content, Duration=dur or 2})
+end
+
+local function randDelay(min, max)
+    task.wait(math.random()*(max-min)+min)
+end
+
+local function getTool()
+    local c=character()
+    return c and c:FindFirstChildOfClass("Tool")
+end
+
+local function getCapacity()
+    local stats=LocalPlayer:FindFirstChild("Stats")
+    return stats and stats:GetAttribute("Capacity")
+end
+
+local function getFill(tool)
+    return tool and tool:GetAttribute("Fill")
+end
+
+local function panIsActive()
+    local c=character()
+    return c and c:GetAttribute("Panning")==true
+end
+
+local function getRemotes(tool)
+    if not tool then return end
+    local scripts=tool:FindFirstChild("Scripts")
+    if not scripts then return end
+    return scripts:FindFirstChild("Collect"), scripts:FindFirstChild("Pan"), scripts:FindFirstChild("Shake")
+end
+
+local function callRemote(remote, ...)
+    if not remote then return false end
+    local ok
+    if remote.ClassName=="RemoteFunction" then
+        ok=pcall(function(...) remote:InvokeServer(...) end, ...)
+    elseif remote.ClassName=="RemoteEvent" then
+        ok=pcall(function(...) remote:FireServer(...) end, ...)
+    end
+    return ok and true or false
+end
+
+-- // Movement
+local function moveTo(cf)
+    local hrp, hum = HRP(), Humanoid()
+    if not hrp or not hum or not cf then return end
+
+    if movementMethod=="Walk 👟" then  
+        hum:MoveTo(cf.Position)  
+        local done, conn=false
+        conn=hum.MoveToFinished:Connect(function() done=true conn:Disconnect() end)  
+        local t0=tick()  
+        while not done and tick()-t0<8 do randDelay(0.1,0.25) end  
+
+    elseif movementMethod=="Smooth Teleport ⚡" then  
+        local tw=TweenService:Create(hrp, TweenInfo.new(math.random(5,10)/10), {CFrame=cf})  
+        tw:Play() tw.Completed:Wait()  
+
+    else -- Instant Teleport ⚡⚡
+        hrp.CFrame=cf  
+        randDelay(0.6,1.2)  
+    end
+end
+
+-- // Farm Helpers
+local function ensurePanStarted(tool, tries, delay)
+    tries, delay = tries or 10, delay or 0.1
+    for _=1,tries do
+        if panIsActive() then return true end
+        local _, panRemote = getRemotes(tool)
+        if panRemote then callRemote(panRemote) end
+        randDelay(delay, delay+0.05)
+        if panIsActive() then return true end
+    end
+    return panIsActive()
+end
+
+local function digUntilFull()
+    local tool, cap=getTool(), getCapacity()
+    if not tool or not cap then return end
+    VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0)
+
+    while autoFarm do
+        tool, cap=getTool(), getCapacity()
+        local fill=getFill(tool)
+        if not tool or not cap or not fill then break end
+        if fill>=cap then break end
+
+        local collect=select(1,getRemotes(tool))
+        if collect then callRemote(collect,1) end
+        randDelay(0.08,0.2) -- dig
+    end
+
+    VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
+end
+
+local function shakeUntilDone()
+    while autoFarm and panIsActive() do
+        local _,_,shake=getRemotes(getTool())
+        if shake then callRemote(shake) end
+        randDelay(0.2,0.35) -- shake
+    end
+end
+
+-- // UI Buttons
+TabFarm:CreateButton({
+    Name="Save Sand Position ⛱️",
+    Callback=function()
+        local h=HRP()
+        if h then savedSandCF=h.CFrame notify("Sand Area ⛏️","Saved ✅.") end
+    end
+})
+
+TabFarm:CreateButton({
+    Name="Save Water Position 🌊",
+    Callback=function()
+        local h=HRP()
+        if h then savedWaterCF=h.CFrame notify("Water Area 💧","Saved ✅.") end
+    end
+})
+
+TabFarm:CreateDropdown({
+    Name="Movement 👟",
+    Options={"Walk 👟","Smooth Teleport ⚡","Instant Teleport ⚡️⚡️"},
+    CurrentOption={"Walk 👟"},
+    Callback=function(opt)
+        movementMethod=(type(opt)=="table" and opt[1]) or opt
+        notify("Pergerakan 👟","Now: "..movementMethod)
+    end
+})
+
+TabFarm:CreateToggle({
+    Name="Auto Farm",
+    CurrentValue=false,
+    Callback=function(state)
+        autoFarm=state
+        if not state then
+            notify("Auto Farm","Stopped ❌")
+            return
+        end
+        notify("Auto Farm","Started ✅")
+        task.spawn(function()
+            while autoFarm do
+                if not savedSandCF or not savedWaterCF then
+                    task.wait(0.5)
+                else
+                    local tool, cap=getTool(), getCapacity()
+                    local fill=getFill(tool)
+                    if tool and cap and fill then
+                        if fill<cap then
+                            moveTo(savedSandCF)
+                            digUntilFull()
+                        elseif fill>=cap then
+                            moveTo(savedWaterCF)
+                            if ensurePanStarted(getTool(),15,0.08) then
+                                shakeUntilDone()
+                            end
+                        end
+                    end
+                end
+                randDelay(0.05,0.15) -- antar cycle
+            end
+        end)
+    end
+})
+
+TabFarm:CreateToggle({
+    Name="Auto Collect + Shake ⛏️💧",
+    CurrentValue=false,
+    Callback=function(state)
+        autoHelper=state
+        if not state then
+            notify("Auto Collect + Shake","Stopped ❌")
+            return
+        end
+        notify("Auto Collect + Shake","Activate ✅")
+        task.spawn(function()
+            local lastPan=0
+            while autoHelper do
+                local tool, cap=getTool(), getCapacity()
+                local fill=getFill(tool)
+                if tool and cap and fill then
+                    if panIsActive() then
+                        local _,_,shake=getRemotes(tool)
+                        if shake then callRemote(shake) end
+                        randDelay(0.2,0.35) -- shake
+                    elseif fill>=cap then
+                        if os.clock()-lastPan>0.4 then
+                            local _,pan=getRemotes(tool)
+                            if pan then callRemote(pan) end
+                            lastPan=os.clock()
+                        end
+                        randDelay(0.1,0.2) -- pan
+                    else
+                        local collect=select(1,getRemotes(tool))
+                        if collect then callRemote(collect,1) end
+                        randDelay(0.08,0.2) -- collect
+                    end
+                else
+                    task.wait(0.2)
+                end
+            end
+        end)
+    end
+})
+
+-- TAB 3: Auto Sell 💰
+local TabSell = Window:CreateTab("Auto Sell 💰")
+
+-- Services & refs
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+
+-- Remote (HARUS InvokeServer)
+local SellItemRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellItem")
+
+-- List rarity & state toggle
+local raritiesSell = {
+    {Name="Common",Emoji="⚪"},
+    {Name="Uncommon",Emoji="🟢"},
+    {Name="Rare",Emoji="🔵"},
+    {Name="Epic",Emoji="🟣"},
+    {Name="Legendary",Emoji="🟡"},
+    {Name="Mythic",Emoji="🔴"},
+    {Name="Exotic",Emoji="💎"},
+}
+local autoSellState = {}
+for _,r in ipairs(raritiesSell) do autoSellState[r.Name]=false end
+
+-- ===== Queue + Anti-cheat layer =====
+local q = {head=1, tail=0, data={}}
+local queued = setmetatable({}, {__mode="k"}) -- weak keys (dedup)
+
+local function q_push(tool)
+    if queued[tool] then return end
+    q.tail += 1
+    q.data[q.tail] = tool
+    queued[tool] = true
+end
+
+local function q_pop()
+    if q.head > q.tail then return nil end
+    local tool = q.data[q.head]
+    q.data[q.head] = nil
+    q.head += 1
+    queued[tool] = nil
+    return tool
+end
+
+-- Random delay 0.05–0.30s
+local function rand_delay()
+    task.wait(math.random(5,30)/100)
+end
+
+-- Validasi sebelum jual
+local function isSellable(tool)
+    if not tool or not tool.Parent then return false end
+    if tool.Parent ~= Backpack then return false end
+    if not tool:IsA("Tool") then return false end
+    if tool:GetAttribute("Locked") == true then return false end
+    if tool:GetAttribute("Equipped") == true or tool.Parent == LocalPlayer.Character then return false end
+    local rarity = tool:GetAttribute("Rarity")
+    if not rarity or autoSellState[rarity] ~= true then return false end
+    return true
+end
+
+-- InvokeServer wrapper
+local function safeInvokeSell(tool)
+    rand_delay()
+    if not isSellable(tool) then return false end
+    local ok, res = pcall(function()
+        return SellItemRemote:InvokeServer(tool)
+    end)
+    if not ok then
+        rand_delay()
+        ok, res = pcall(function()
+            return SellItemRemote:InvokeServer(tool)
+        end)
+    end
+    return ok and (res == true or res == "Success")
+end
+
+-- Backpack event
+Backpack.ChildAdded:Connect(function(tool)
+    if not tool or not tool:IsA("Tool") then return end
+    task.delay(math.random(0,30)/100, function()
+        local rarity = tool:GetAttribute("Rarity")
+        if rarity and autoSellState[rarity] then
+            q_push(tool)
+        end
+    end)
+end)
+
+-- Periodic backfill
+task.spawn(function()
+    while true do
+        task.wait(math.random(25,60)/100)
+        for _, tool in ipairs(Backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                local rarity = tool:GetAttribute("Rarity")
+                if rarity and autoSellState[rarity] and not queued[tool] then
+                    q_push(tool)
+                end
+            end
+        end
+    end
+end)
+
+-- Worker pool (lebih banyak & lebih cepat)
+local WORKERS = 10
+local MAX_PER_SWEEP = 15
+
+for i = 1, WORKERS do
+    task.spawn(function()
+        while true do
+            local takeN = math.random(5, MAX_PER_SWEEP) -- ambil 5–15 item sekaligus
+            for _ = 1, takeN do
+                local tool = q_pop()
+                if not tool then break end
+                if isSellable(tool) then
+                    safeInvokeSell(tool)
+                    task.wait(math.random(3, 15) / 100) -- delay 0.03–0.15s per item
+                end
+            end
+            task.wait(math.random(5, 20) / 100) -- istirahat antar sweep 0.05–0.2s
+        end
+    end)
+end
+
+-- UI: Toggle per rarity
+for _, r in ipairs(raritiesSell) do
+    TabSell:CreateToggle({
+        Name = r.Emoji .. " Auto Sell " .. r.Name,
+        CurrentValue = false,
+        Callback = function(state)
+            autoSellState[r.Name] = state
+        end
+    })
+end
+
+-- Tombol: Matikan semua
+TabSell:CreateButton({
+    Name = "❌ Matikan Semua Auto Sell",
+    Callback = function()
+        for _, r in ipairs(raritiesSell) do
+            autoSellState[r.Name] = false
+        end
+        Rayfield:Notify({
+            Title = "Auto Sell",
+            Content = "Semua auto sell dimatikan.",
+            Duration = 2
+        })
+    end
+})
+
+-- TAB 4: Auto Lock 🔒
+local TabLock = Window:CreateTab("Auto Lock 🔒")
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+
+-- Remote
+local ToggleLockRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Inventory"):WaitForChild("ToggleLock")
+
+-- Rarity list khusus Lock
+local raritiesLock = {
+    {Name = "Common", Emoji = "⚪"},
+    {Name = "Uncommon", Emoji = "🟢"},
+    {Name = "Rare", Emoji = "🔵"},
+    {Name = "Epic", Emoji = "🟣"},
+    {Name = "Legendary", Emoji = "🟡"},
+    {Name = "Mythic", Emoji = "🔴"},
+    {Name = "Exotic", Emoji = "💎"}
+}
+
+-- State lock toggle
+local autoLockState = {}
+for _, rarity in ipairs(raritiesLock) do
+    autoLockState[rarity.Name] = false
+end
+
+-- Random delay biar aman (anti cheat detect pattern)
+local function rand_delay()
+    task.wait(math.random(5,25)/100) -- 0.05 - 0.25s
+end
+
+-- Fungsi kirim remote (hybrid: Invoke dulu, fallback Fire)
+local function safeToggleLock(item)
+    local success, result = pcall(function()
+        return ToggleLockRemote:InvokeServer(item)
+    end)
+    if not success then
+        pcall(function()
+            ToggleLockRemote:FireServer(item)
+        end)
+    end
+end
+
+-- Fungsi lock item kalau sesuai rarity
+local function lockItem(item)
+    if not item:IsA("Tool") then return end
+    local rarity = item:GetAttribute("Rarity")
+    local isLocked = item:GetAttribute("Locked")
+
+    if rarity and autoLockState[rarity] and not isLocked then
+        safeToggleLock(item)
+        item:SetAttribute("Locked", true) -- biar langsung kebaca di client
+        rand_delay()
+    end
+end
+
+-- Event: langsung lock kalau ada item baru
+Backpack.ChildAdded:Connect(function(tool)
+    task.wait(0.1) -- tunggu attribute kebaca
+    lockItem(tool)
+end)
+
+-- Loop: sweeping isi backpack (buat re-lock item lama / yang kamu buka manual)
+task.spawn(function()
+    while true do
+        for _, tool in ipairs(Backpack:GetChildren()) do
+            lockItem(tool)
+        end
+        task.wait(math.random(40,70)/100) -- 0.40 - 0.70s antar sweep
+    end
+end)
+
+-- Buat toggle di UI
+for _, rarity in ipairs(raritiesLock) do
+    TabLock:CreateToggle({
+        Name = rarity.Emoji .. " Auto Lock " .. rarity.Name,
+        CurrentValue = false,
+        Callback = function(state)
+            autoLockState[rarity.Name] = state
+        end
+    })
+end
+ 
+-- Unlock All button (instant, dengan notif)
+TabLock:CreateButton({
+    Name = "Unlock All 🔓",
+    Callback = function()
+        local unlocked = 0
+        for _, item in ipairs(Backpack:GetChildren()) do
+            if item:IsA("Tool") and item:GetAttribute("Rarity") and item:GetAttribute("Locked") then
+                pcall(function()
+                    ToggleLockRemote:FireServer(item)
+                    item:SetAttribute("Locked", false) -- gunakan false, bukan nil
+                    unlocked += 1
+                end)
+            end
+        end
+ 
+        Rayfield:Notify({
+            Title = "Unlock All",
+            Content = string.format("%d item(s) unlocked.", unlocked),
+            Duration = 3
+        })
+    end
+})
