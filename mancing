@@ -57,11 +57,12 @@ local function stopFishing()
     print("[Mammoth Fish It] Fishing stopped and state reset")
 end
 
--- ====== AUTO FISH LOOP ======
+-- ====== AUTO FISH LOOP (Optimized Delay) ======
 local function autoFishLoop()
     local notifyCooldown = 0
 
     while fishingActive do
+        -- Cari remote kalau hilang
         if not (ChargeRod and RequestMinigame and FishingComplete) then
             if not findRemotes() then
                 if tick() - notifyCooldown > 5 then
@@ -72,7 +73,7 @@ local function autoFishLoop()
                     })
                     notifyCooldown = tick()
                 end
-                task.wait(2)
+                task.wait(2 + math.random()) -- kasih jeda lebih lama
                 continue
             end
         end
@@ -85,13 +86,14 @@ local function autoFishLoop()
                 ChargeRod:FireServer(tick())
             end
         end)
+
         if not success then
-            task.wait(0.5)
+            task.wait(1 + math.random()) -- tunggu lebih lama kalo gagal
             continue
         end
 
-        -- Cast delay (0.025 - 0.1 detik)
-        task.wait(math.random(25, 100) / 1000)
+        -- Delay cast (0.15 - 0.25 detik)
+        task.wait(0.15 + math.random() * 0.1)
 
         -- Start Minigame
         pcall(function()
@@ -102,16 +104,21 @@ local function autoFishLoop()
             end
         end)
 
-        -- Tunggu sebelum complete (0.6 - 1 detik)
-        task.wait(0.6 + math.random() * 0.4)
+        -- Tunggu sebelum complete (0.7 - 1.4 detik)
+        task.wait(0.7 + math.random() * 0.7)
 
-        -- Complete Fishing
+        -- Complete Fishing (2x biar pasti ke-register)
         pcall(function() FishingComplete:FireServer() end)
-        task.wait(0.5 + math.random() * 0.2)
+        task.wait(0.5 + math.random() * 0.3)
         pcall(function() FishingComplete:FireServer() end)
 
         currentFishCount += 1
         print(("[Mammoth Fish It] Caught fish #%d"):format(currentFishCount))
+
+        -- Jeda antar loop (0.5 - 1.2 detik, biar ga spam server)
+        task.wait(0.5 + math.random() * 0.7)
+    end
+end
 
         -- Auto Sell check (aman dari nil)
         if autoSellActive and SellAll and targetFishCount and currentFishCount >= targetFishCount then
