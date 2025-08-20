@@ -338,7 +338,90 @@ TabTeleport:CreateParagraph({
     ]]
 })
 
--- ====== TAB 5: Utility ⚙️ ======
+-- ====== TAB 5: Weather Shop 🏪🔆  ======
+local TabWeather = Window:CreateTab("Weather Shop 🏪🔆", 4483362458) 
+local SectionWeather = TabWeather:CreateSection("Buy Special Weather")
+
+-- Helper beli cuaca
+local function buyWeather(weatherName, displayName)
+    local ok, result = pcall(function()
+        return game:GetService("ReplicatedStorage")
+            :WaitForChild("Packages")
+            :WaitForChild("_Index")
+            :WaitForChild("sleitnick_net@0.2.0")
+            :WaitForChild("net")
+            :WaitForChild("RF/PurchaseWeatherEvent")
+            :InvokeServer(weatherName)
+    end)
+
+    if ok and result then
+        Rayfield:Notify({
+            Title = "Buying Successfully✅",
+            Content = "Thankyou Sultan 👑💰: " .. displayName,
+            Duration = 1
+        })
+    else
+        Rayfield:Notify({
+            Title = "Buying Fail❌",
+            Content = "Minggir Lu Miskien🗿🖕🏻",
+            Duration = 1
+        })
+    end
+end
+
+-- Daftar tombol
+TabWeather:CreateButton({
+    Name = "Wind 💨 ($10K 🪙)",
+    Callback = function()
+        buyWeather("Wind", "Wind 💨")
+    end
+})
+
+TabWeather:CreateButton({
+    Name = "Cloudy ☁️ ($20K 🪙)",
+    Callback = function()
+        buyWeather("Cloudy", "Cloudy ☁️")
+    end
+})
+
+TabWeather:CreateButton({
+    Name = "Snow ❄️ ($15K 🪙)",
+    Callback = function()
+        buyWeather("Snow", "Snow ❄️")
+    end
+})
+
+TabWeather:CreateButton({
+    Name = "Storm ⛈️ ($35K 🪙)",
+    Callback = function()
+        buyWeather("Storm", "Storm ⛈️")
+    end
+})
+
+TabWeather:CreateButton({
+    Name = "Radiant ✨ ($50K 🪙)",
+    Callback = function()
+        buyWeather("Radiant", "Radiant ✨")
+    end
+})
+
+TabWeather:CreateButton({
+    Name = "Shark Hunt 🦈 ($300K 🪙)",
+    Callback = function()
+        buyWeather("Shark Hunt", "Shark Hunt 🦈")
+    end
+})
+
+-- Section + Tutorial
+TabWeather:CreateSection("📚 Tutorial 📚")
+TabWeather:CreateParagraph({
+    Title = "By Mammoth👑",
+    Content = [[
+• Tinggal Pilih Mau Beli Cuaca Yang Mana, Minimal Jangan Miskin Aja🗿
+    ]]
+})
+
+-- ====== TAB 6: Utility ⚙️ ======
 local TabUtility = Window:CreateTab("Utility ⚙️")
 
 -- Services
