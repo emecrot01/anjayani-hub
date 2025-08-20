@@ -1,0 +1,474 @@
+-- Booting Rayfield UI Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- Notif Startup
+Rayfield:Notify({
+Title = "Sabar Ya Anj",
+Content = "Loading 🗿🖕🏻",
+Duration = 5,
+})
+
+local Window = Rayfield:CreateWindow({
+Name = "👑 Mammoth King | Fish It 🐟",
+LoadingTitle = "Fish It Script 🐟",
+LoadingSubtitle = "Mata Pancing 🥵YAMETEHH🥵",
+ConfigurationSaving = { Enabled = false }
+})
+
+-- ====== REMOTES FINDER ======
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Rayfield = Rayfield -- asumsi udah ada Rayfield di Hub
+
+local Net, SellAll, ChargeRod, RequestMinigame, FishingComplete
+
+local function findRemotes()
+    local packages = ReplicatedStorage:FindFirstChild("Packages")
+    if packages then
+        local index = packages:FindFirstChild("_Index")
+        if index then
+            local sleit = index:FindFirstChild("sleitnick_net@0.2.0")
+            if sleit then
+                Net = sleit:FindFirstChild("net")
+                if Net then
+                    ChargeRod = Net:FindFirstChild("RF/ChargeFishingRod")
+                    RequestMinigame = Net:FindFirstChild("RF/RequestFishingMinigameStarted")
+                    FishingComplete = Net:FindFirstChild("RE/FishingCompleted")
+                    SellAll = Net:FindFirstChild("RF/SellAllItems")
+                end
+            end
+        end
+    end
+end
+findRemotes()
+
+-- ====== STATE ======
+local fishingActive = false
+local autoSellActive = false
+local targetFishCount = nil -- default kosong
+local currentFishCount = 0
+local isAutoFishLoopRunning = false
+local fishingDelay = 1.0 -- default, bisa diubah lewat slider
+
+-- ====== STOP FUNCTION ======
+local function stopFishing()
+    fishingActive = false
+    currentFishCount = 0 -- reset counter
+    isAutoFishLoopRunning = false -- reset biar bisa start lagi
+    print("[Mammoth Fish It] Fishing stopped and state reset")
+end
+
+-- ====== AUTO FISH LOOP ======
+local function autoFishLoop()
+    local notifyCooldown = 0
+
+    while fishingActive do
+        if not (ChargeRod and RequestMinigame and FishingComplete) then
+            if not findRemotes() then
+                if tick() - notifyCooldown > 5 then
+                    Rayfield:Notify({
+                        Title = "Mammoth Fish It",
+                        Content = "Remotes not found. Retrying...",
+                        Duration = 3
+                    })
+                    notifyCooldown = tick()
+                end
+                task.wait(2)
+                continue
+            end
+        end
+
+        -- Cast Fishing Rod
+        local success = pcall(function()
+            if ChargeRod.InvokeServer then
+                ChargeRod:InvokeServer(tick())
+            else
+                ChargeRod:FireServer(tick())
+            end
+        end)
+        if not success then
+            task.wait(0.5)
+            continue
+        end
+
+        -- Cast delay (0.025 - 0.1 detik)
+        task.wait(math.random(25, 100) / 1000)
+
+        -- Start Minigame
+        pcall(function()
+            if RequestMinigame.InvokeServer then
+                RequestMinigame:InvokeServer(-1 + math.random(), 1)
+            else
+                RequestMinigame:FireServer(-1 + math.random(), 1)
+            end
+        end)
+
+        -- Tunggu sebelum complete (0.6 - 1 detik)
+        task.wait(0.6 + math.random() * 0.4)
+
+        -- Complete Fishing
+        pcall(function() FishingComplete:FireServer() end)
+        task.wait(0.5 + math.random() * 0.2)
+        pcall(function() FishingComplete:FireServer() end)
+
+        currentFishCount += 1
+        print(("[Mammoth Fish It] Caught fish #%d"):format(currentFishCount))
+
+        -- Auto Sell check (aman dari nil)
+        if autoSellActive and SellAll and targetFishCount and currentFishCount >= targetFishCount then
+            local ok, err = pcall(function()
+                if SellAll.InvokeServer then
+                    SellAll:InvokeServer("Fishes")
+                else
+                    SellAll:FireServer("Fishes")
+                end
+            end)
+            if ok then
+                Rayfield:Notify({
+                    Title = "Mammoth Fish It",
+                    Content = ("Sold %d fishes"):format(currentFishCount),
+                    Duration = 3
+                })
+                currentFishCount = 0
+            else
+                warn("[Mammoth Fish It] SellAll failed:", err)
+            end
+        end
+
+        -- Slider-based interval
+        task.wait(fishingDelay)
+    end
+
+    -- keluar loop = stop otomatis
+    isAutoFishLoopRunning = false
+end
+
+-- ====== TELEPORT DATA (URUTAN FIX) ======
+local teleportLocations = {
+    { Name = "Stingray Shores 🐠", Pos = Vector3.new(19.035, 15, 2889.627) },
+    { Name = "Kohana Island 🏝️", Pos = Vector3.new(-642.76, 19, 618.787) },
+    { Name = "Kohana Volcano 🌋", Pos = Vector3.new(-523.946, 30, 188.882) },
+    { Name = "Coral Reefs 🐚", Pos = Vector3.new(-2797.356, 15, 2110.986) },
+    { Name = "Esoteric Depths 🌌", Pos = Vector3.new(2025.875, 30, 1392.24) },
+    { Name = "Tropical Grove 🌴", Pos = Vector3.new(-2046.46, 13, 3658.995) },
+    { Name = "Crater Island ⛰️", Pos = Vector3.new(863.528, 40, 4946.208) },
+    { Name = "Lost Isle (Sisyphus Statue) 🔱", Pos = Vector3.new(-3693.872, -132, -1042.617) },
+    { Name = "Lost Isle (Treasure Hall) 💎", Pos = Vector3.new(-3600.823, -313, -1405.601) },
+    { Name = "Lost Isle (Treasure Room) 🏴‍☠️", Pos = Vector3.new(-3600.215, -262, -1570.752) },
+}
+
+-- ====== TELEPORT FUNCTION ======
+local function teleportTo(targetPos, locationName)
+    local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = CFrame.new(targetPos)
+        Rayfield:Notify({
+            Title = "Teleport ✈️",
+            Content = "Teleported to " .. locationName .. " ✅",
+            Duration = 3
+        })
+    else
+        Rayfield:Notify({
+            Title = "Teleport ✈️",
+            Content = "HumanoidRootPart not found ❌",
+            Duration = 3
+        })
+    end
+end
+
+-- ====== TAB 1: Home 🏠======
+local TabHome = Window:CreateTab("🏠 Home")
+ 
+TabHome:CreateLabel("Fish It🐟 v1.0")
+ 
+-- 🔥 Tambahan: Section Changelog
+TabHome:CreateSection("📜 Changelog")
+ 
+TabHome:CreateParagraph({
+    Title = "Fish It🐟 v1.0",
+    Content = [[
+🎉 Fitur Yang Tersedia:
+- Auto Fishing 🎣
+(Sistem Delay, Auto Fishing)
+- Auto Sell 💰
+(Text Box Set, Auto Sell)
+- Teleport 🏝️
+(Ya teleport, Apalagi Coba 🗿)
+- Utility ⚙️
+(WalkSpeed/JumpPower, Inf Jump, Infinity Oxygen, Anti AFK)
+    ]]
+})
+
+-- ====== TAB 2: Auto Farm 🐟 ======
+local TabFarm = Window:CreateTab("Auto Farm 🐟")
+
+TabFarm:CreateToggle({
+    Name = "Auto Fishing 🎣",
+    CurrentValue = false,
+    Flag = "AutoFishing",
+    Callback = function(Value)
+        if Value then
+            fishingActive = true
+            if not isAutoFishLoopRunning then
+                isAutoFishLoopRunning = true
+                task.spawn(autoFishLoop)
+            end
+        else
+            stopFishing()
+        end
+    end,
+})
+
+TabFarm:CreateSlider({
+    Name = "Fishing Delay ⌛",
+    Range = {0.5, 5},
+    Increment = 0.1,
+    Suffix = "s",
+    CurrentValue = fishingDelay,
+    Flag = "FishingDelay",
+    Callback = function(Value)
+        fishingDelay = Value
+    end,
+})
+
+-- Section + Tutorial
+TabFarm:CreateSection("📚 Tutorial 📚")
+TabFarm:CreateParagraph({
+    Title = "By Mammoth👑",
+    Content = [[
+• Gunakan Pancingan Terlebih Dahulu
+• Set Delay ⌛(0.5 - 5s) 
+• Aktifkan Auto Fishing 🎣
+    ]]
+})
+
+-- ====== TAB 3: Auto Sell 💰 ======
+local TabSell = Window:CreateTab("Auto Sell 💰")
+
+-- Toggle Auto Sell
+TabSell:CreateToggle({
+    Name = "Auto Sell 💰",
+    CurrentValue = false,
+    Flag = "AutoSell",
+    Callback = function(Value)
+        autoSellActive = Value
+        if Value then
+            Rayfield:Notify({
+                Title = "Auto Sell",
+                Content = "Enabled ✅",
+                Duration = 2
+            })
+        else
+            Rayfield:Notify({
+                Title = "Auto Sell",
+                Content = "Disabled ❌",
+                Duration = 2
+            })
+        end
+    end,
+})
+
+-- TextBox Set Fish
+TabSell:CreateInput({
+    Name = "Set Fish 🐟",
+    CurrentValue = targetFishCount and tostring(targetFishCount) or "", -- default kosong
+    PlaceholderText = "Jumlah ikan untuk auto sell",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Value)
+        local number = tonumber(Value)
+        if number and number > 0 then
+            targetFishCount = number
+            print("[Mammoth Fish It] Target fish count set to:", number)
+        else
+            targetFishCount = nil
+            print("[Mammoth Fish It] Target fish count cleared")
+        end
+    end,
+})
+
+-- Section + Tutorial
+TabSell:CreateSection("📚 Tutorial 📚")
+TabSell:CreateParagraph({
+    Title = "By Mammoth👑",
+    Content = [[
+• Isi angka di "Set Fish 🐟"
+• Aktifkan "Auto Sell 💰"
+• Kalau jumlah ikan tercapai → otomatis dijual
+    ]]
+})
+
+-- ====== TAB 4: TELEPORT ✈️ ======
+local TabTeleport = Window:CreateTab("Teleport ✈️")
+
+for _, data in ipairs(teleportLocations) do
+    TabTeleport:CreateButton({
+        Name = data.Name,
+        Callback = function()
+            teleportTo(data.Pos, data.Name)
+        end,
+    })
+end
+
+-- Section + Tutorial
+TabTeleport:CreateSection("📚 Tutorial 📚")
+TabTeleport:CreateParagraph({
+    Title = "By Mammoth👑",
+    Content = [[
+• Tinggal Pilih Mau TP Ke Pulau Mana (gitu doang masa kaga tau🗿🗿🗿)
+    ]]
+})
+
+-- ====== TAB 5: Utility ⚙️ ======
+local TabUtility = Window:CreateTab("Utility ⚙️")
+
+-- Services
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Humanoid = LocalPlayer.Character and LocalPlayer.Character:WaitForChild("Humanoid")
+
+-- Backup nilai default
+local defaultWalkSpeed = Humanoid and Humanoid.WalkSpeed or 20
+local defaultJumpPower = Humanoid and Humanoid.JumpPower or 50
+
+-- ===== Walk Speed =====
+local walkSpeedSlider = TabUtility:CreateSlider({
+    Name = "Walk Speed 👟⚡️",
+    Range = {0, 100},
+    Increment = 1,
+    Suffix = "Speed",
+    CurrentValue = defaultWalkSpeed,
+    Flag = "WalkSpeed",
+    Callback = function(Value)
+        if Humanoid then
+            Humanoid.WalkSpeed = Value
+        end
+    end,
+})
+
+TabUtility:CreateButton({
+    Name = "Reset Walk Speed 🔄",
+    Callback = function()
+        if Humanoid then
+            Humanoid.WalkSpeed = defaultWalkSpeed
+            walkSpeedSlider:Set(defaultWalkSpeed)
+        end
+    end,
+})
+
+-- ===== Jump Boost =====
+local jumpPowerSlider = TabUtility:CreateSlider({
+    Name = "Jump Boost 🤸‍♂️🚀",
+    Range = {0, 200},
+    Increment = 5,
+    Suffix = "Power",
+    CurrentValue = defaultJumpPower,
+    Flag = "JumpPower",
+    Callback = function(Value)
+        if Humanoid then
+            Humanoid.JumpPower = Value
+        end
+    end,
+})
+
+TabUtility:CreateButton({
+    Name = "Reset Jump Boost 🔄",
+    Callback = function()
+        if Humanoid then
+            Humanoid.JumpPower = defaultJumpPower
+            jumpPowerSlider:Set(defaultJumpPower)
+        end
+    end,
+})
+
+-- ===== Infinite Jump =====
+local infiniteJump = false
+TabUtility:CreateToggle({
+    Name = "Infinity Jump 🤸‍♂️♾️",
+    CurrentValue = false,
+    Flag = "InfiniteJump",
+    Callback = function(Value)
+        infiniteJump = Value
+    end,
+})
+
+-- Script handler Infinite Jump
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if infiniteJump and Humanoid then
+        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- 🔘 Infinity Oxygen (Button)
+TabUtility:CreateButton({
+    Name = "Infinity Oxygen 🤿♾️",
+    Callback = function()
+        local Players = game:GetService("Players")
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local LocalPlayer = Players.LocalPlayer
+
+        -- Cari package Net
+        local Net = ReplicatedStorage:WaitForChild("Packages")
+            :WaitForChild("_Index")
+            :FindFirstChild("sleitnick_net@0.2.0")
+            :WaitForChild("net")
+
+        -- Remote Oxygen
+        local OxygenEvent = Net:FindFirstChild("URE/UpdateOxygen")
+
+        -- Hook metamethod buat blokir FireServer oxygen damage
+        local mt = getrawmetatable(game)
+        setreadonly(mt, false)
+        local oldNamecall = mt.__namecall
+
+        mt.__namecall = function(self, ...)
+            local method = getnamecallmethod()
+            if self == OxygenEvent and method == "FireServer" then
+                return nil
+            end
+            return oldNamecall(self, ...)
+        end
+
+        setreadonly(mt, true)
+
+        Rayfield:Notify({
+            Title = "Infinity Oxygen",
+            Content = "Aktif ✅ (ga bisa dimatiin, rejoin untuk reset)",
+            Duration = 5
+        })
+    end,
+})
+
+-- Anti AFK Toggle
+local VirtualUser = game:GetService("VirtualUser")
+local antiAfkConnection
+
+TabUtility:CreateToggle({
+    Name = "Anti Turu ⏰",
+    CurrentValue = true,
+    Callback = function(Value)
+        if Value then
+            -- Aktif
+            antiAfkConnection = Players.LocalPlayer.Idled:Connect(function()
+                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                task.wait(1)
+                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            end)
+            print("✅ Anti Turu aktif")
+        else
+            -- Nonaktif
+            if antiAfkConnection then
+                antiAfkConnection:Disconnect()
+                antiAfkConnection = nil
+            end
+            print("❌ Anti Turu dimatikan")
+        end
+    end,
+})
+
+-- Section + Tutorial
+TabUtility:CreateSection("📚 Tutorial 📚")
+TabUtility:CreateParagraph({
+    Title = "By Mammoth👑",
+    Content = [[
+• Kalo Mau Pake Ya Pake Aja, Paling Yang Penting Cuma. Infinity Oxygen🗿
+    ]]
+})
