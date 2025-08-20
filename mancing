@@ -60,6 +60,7 @@ end
 -- ====== AUTO FISH LOOP (Optimized Delay) ======
 local function autoFishLoop()
     local notifyCooldown = 0
+    isAutoFishLoopRunning = true
 
     while fishingActive do
         -- Cari remote kalau hilang
@@ -73,7 +74,7 @@ local function autoFishLoop()
                     })
                     notifyCooldown = tick()
                 end
-                task.wait(2 + math.random()) -- kasih jeda lebih lama
+                task.wait(2 + math.random())
                 continue
             end
         end
@@ -86,9 +87,8 @@ local function autoFishLoop()
                 ChargeRod:FireServer(tick())
             end
         end)
-
         if not success then
-            task.wait(1 + math.random()) -- tunggu lebih lama kalo gagal
+            task.wait(1 + math.random())
             continue
         end
 
@@ -105,22 +105,17 @@ local function autoFishLoop()
         end)
 
         -- Tunggu sebelum complete (0.7 - 1.4 detik)
-        task.wait(0.7 + math.random() * 0.7)
+        task.wait(0.5 + math.random() * 0.7)
 
         -- Complete Fishing (2x biar pasti ke-register)
         pcall(function() FishingComplete:FireServer() end)
-        task.wait(0.5 + math.random() * 0.3)
+        task.wait(0.5 + math.random() * 0.8)
         pcall(function() FishingComplete:FireServer() end)
 
         currentFishCount += 1
         print(("[Mammoth Fish It] Caught fish #%d"):format(currentFishCount))
 
-        -- Jeda antar loop (0.5 - 1.2 detik, biar ga spam server)
-        task.wait(0.5 + math.random() * 0.7)
-    end
-end
-
-        -- Auto Sell check (aman dari nil)
+        -- 🔹 Auto Sell check (pastikan tetap di dalam loop)
         if autoSellActive and SellAll and targetFishCount and currentFishCount >= targetFishCount then
             local ok, err = pcall(function()
                 if SellAll.InvokeServer then
@@ -141,7 +136,7 @@ end
             end
         end
 
-        -- Slider-based interval
+        -- 🔹 Slider-based interval (buat kontrol speed loop)
         task.wait(fishingDelay)
     end
 
