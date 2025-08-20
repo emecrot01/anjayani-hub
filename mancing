@@ -428,34 +428,7 @@ TabWeather:CreateParagraph({
     ]]
 })
 
--- ====== TAB 6: Utility ⚙️ ======
-local TabUtility = Window:CreateTab("Utility ⚙️")
-
--- Services
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Humanoid = LocalPlayer.Character and LocalPlayer.Character:WaitForChild("Humanoid")
-
--- Backup nilai default
-local defaultWalkSpeed = Humanoid and Humanoid.WalkSpeed or 20
-local defaultJumpPower = Humanoid and Humanoid.JumpPower or 50
-
--- ===== Walk Speed =====
-local walkSpeedSlider = TabUtility:CreateSlider({
-    Name = "Walk Speed 👟⚡️",
-    Range = {0, 100},
-    Increment = 1,
-    Suffix = "Speed",
-    CurrentValue = defaultWalkSpeed,
-    Flag = "WalkSpeed",
-    Callback = function(Value)
-        if Humanoid then
-            Humanoid.WalkSpeed = Value
-        end
-    end,
-})
-
-TabUtility:CreateButton({
+({
     Name = "Reset Walk Speed 🔄",
     Callback = function()
         if Humanoid then
@@ -480,6 +453,100 @@ local jumpPowerSlider = TabUtility:CreateSlider({
     end,
 })
 
+ = getnamecallmethod()
+            if self == OxygenEvent and method == "FireServer" then
+                return nil
+            end
+            return oldNamecall(self, ...)
+        end
+
+        setreadonly(mt, true)
+
+        Rayfield:Notify({
+            Title = "Infinity Oxygen",
+            Content = "Aktif ✅ (ga bisa dimatiin, rejoin untuk reset)",
+            Duration = 5
+        })
+    end,
+})
+
+-- ====== TAB 6: Utility ⚙️ ======
+local TabUtility = Window:CreateTab("Utility ⚙️")
+
+-- Services
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
+
+-- Variabel global
+local Humanoid
+local defaultWalkSpeed = 20
+local defaultJumpPower = 50
+local infiniteJump = false
+local antiAfkConnection
+
+-- Fungsi untuk update Humanoid setiap spawn
+local function setupCharacter(char)
+    Humanoid = char:WaitForChild("Humanoid")
+
+    -- Update nilai default biar sesuai server
+    defaultWalkSpeed = Humanoid.WalkSpeed
+    defaultJumpPower = Humanoid.JumpPower
+
+    -- Reset slider ke nilai default (biar nggak mati total setelah respawn)
+    if walkSpeedSlider then walkSpeedSlider:Set(defaultWalkSpeed) end
+    if jumpPowerSlider then jumpPowerSlider:Set(defaultJumpPower) end
+end
+
+-- Panggil saat ini
+if LocalPlayer.Character then
+    setupCharacter(LocalPlayer.Character)
+end
+
+-- Panggil lagi tiap respawn
+LocalPlayer.CharacterAdded:Connect(setupCharacter)
+
+-- ===== Walk Speed =====
+walkSpeedSlider = TabUtility:CreateSlider({
+    Name = "Walk Speed 👟⚡️",
+    Range = {0, 100},
+    Increment = 1,
+    Suffix = "Speed",
+    CurrentValue = defaultWalkSpeed,
+    Flag = "WalkSpeed",
+    Callback = function(Value)
+        if Humanoid then
+            Humanoid.WalkSpeed = Value
+        end
+    end,
+})
+
+TabUtility:CreateButton({
+    Name = "Reset Walk Speed 🔄",
+    Callback = function()
+        if Humanoid then
+            Humanoid.WalkSpeed = defaultWalkSpeed
+            walkSpeedSlider:Set(defaultWalkSpeed)
+        end
+    end,
+})
+
+-- ===== Jump Boost =====
+jumpPowerSlider = TabUtility:CreateSlider({
+    Name = "Jump Boost 🤸‍♂️🚀",
+    Range = {0, 200},
+    Increment = 5,
+    Suffix = "Power",
+    CurrentValue = defaultJumpPower,
+    Flag = "JumpPower",
+    Callback = function(Value)
+        if Humanoid then
+            Humanoid.JumpPower = Value
+        end
+    end,
+})
+
 TabUtility:CreateButton({
     Name = "Reset Jump Boost 🔄",
     Callback = function()
@@ -491,7 +558,6 @@ TabUtility:CreateButton({
 })
 
 -- ===== Infinite Jump =====
-local infiniteJump = false
 TabUtility:CreateToggle({
     Name = "Infinity Jump 🤸‍♂️♾️",
     CurrentValue = false,
@@ -502,7 +568,7 @@ TabUtility:CreateToggle({
 })
 
 -- Script handler Infinite Jump
-game:GetService("UserInputService").JumpRequest:Connect(function()
+UserInputService.JumpRequest:Connect(function()
     if infiniteJump and Humanoid then
         Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
     end
@@ -512,20 +578,14 @@ end)
 TabUtility:CreateButton({
     Name = "Infinity Oxygen 🤿♾️",
     Callback = function()
-        local Players = game:GetService("Players")
         local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local LocalPlayer = Players.LocalPlayer
-
-        -- Cari package Net
         local Net = ReplicatedStorage:WaitForChild("Packages")
             :WaitForChild("_Index")
             :FindFirstChild("sleitnick_net@0.2.0")
             :WaitForChild("net")
 
-        -- Remote Oxygen
         local OxygenEvent = Net:FindFirstChild("URE/UpdateOxygen")
 
-        -- Hook metamethod buat blokir FireServer oxygen damage
         local mt = getrawmetatable(game)
         setreadonly(mt, false)
         local oldNamecall = mt.__namecall
@@ -548,24 +608,19 @@ TabUtility:CreateButton({
     end,
 })
 
--- Anti AFK Toggle
-local VirtualUser = game:GetService("VirtualUser")
-local antiAfkConnection
-
+-- ===== Anti AFK =====
 TabUtility:CreateToggle({
     Name = "Anti Turu ⏰",
     CurrentValue = true,
     Callback = function(Value)
         if Value then
-            -- Aktif
-            antiAfkConnection = Players.LocalPlayer.Idled:Connect(function()
+            antiAfkConnection = LocalPlayer.Idled:Connect(function()
                 VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
                 task.wait(1)
                 VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
             end)
             print("✅ Anti Turu aktif")
         else
-            -- Nonaktif
             if antiAfkConnection then
                 antiAfkConnection:Disconnect()
                 antiAfkConnection = nil
