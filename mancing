@@ -428,48 +428,6 @@ TabWeather:CreateParagraph({
     ]]
 })
 
-({
-    Name = "Reset Walk Speed 🔄",
-    Callback = function()
-        if Humanoid then
-            Humanoid.WalkSpeed = defaultWalkSpeed
-            walkSpeedSlider:Set(defaultWalkSpeed)
-        end
-    end,
-})
-
--- ===== Jump Boost =====
-local jumpPowerSlider = TabUtility:CreateSlider({
-    Name = "Jump Boost 🤸‍♂️🚀",
-    Range = {0, 200},
-    Increment = 5,
-    Suffix = "Power",
-    CurrentValue = defaultJumpPower,
-    Flag = "JumpPower",
-    Callback = function(Value)
-        if Humanoid then
-            Humanoid.JumpPower = Value
-        end
-    end,
-})
-
- = getnamecallmethod()
-            if self == OxygenEvent and method == "FireServer" then
-                return nil
-            end
-            return oldNamecall(self, ...)
-        end
-
-        setreadonly(mt, true)
-
-        Rayfield:Notify({
-            Title = "Infinity Oxygen",
-            Content = "Aktif ✅ (ga bisa dimatiin, rejoin untuk reset)",
-            Duration = 5
-        })
-    end,
-})
-
 -- ====== TAB 6: Utility ⚙️ ======
 local TabUtility = Window:CreateTab("Utility ⚙️")
 
@@ -486,25 +444,24 @@ local defaultJumpPower = 50
 local infiniteJump = false
 local antiAfkConnection
 
--- Fungsi untuk update Humanoid setiap spawn
+-- Fungsi untuk update Humanoid setiap spawn / respawn
 local function setupCharacter(char)
     Humanoid = char:WaitForChild("Humanoid")
 
-    -- Update nilai default biar sesuai server
+    -- Update default sesuai server
     defaultWalkSpeed = Humanoid.WalkSpeed
     defaultJumpPower = Humanoid.JumpPower
 
-    -- Reset slider ke nilai default (biar nggak mati total setelah respawn)
+    -- Reset slider ke default (biar balik normal pas mati/reset)
     if walkSpeedSlider then walkSpeedSlider:Set(defaultWalkSpeed) end
     if jumpPowerSlider then jumpPowerSlider:Set(defaultJumpPower) end
 end
 
--- Panggil saat ini
+-- Pasang ke char sekarang
 if LocalPlayer.Character then
     setupCharacter(LocalPlayer.Character)
 end
-
--- Panggil lagi tiap respawn
+-- Pasang ke setiap respawn
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
 -- ===== Walk Speed =====
@@ -567,14 +524,14 @@ TabUtility:CreateToggle({
     end,
 })
 
--- Script handler Infinite Jump
+-- Handler Infinite Jump
 UserInputService.JumpRequest:Connect(function()
     if infiniteJump and Humanoid then
         Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
     end
 end)
 
--- 🔘 Infinity Oxygen (Button)
+-- ===== Infinity Oxygen =====
 TabUtility:CreateButton({
     Name = "Infinity Oxygen 🤿♾️",
     Callback = function()
@@ -619,13 +576,11 @@ TabUtility:CreateToggle({
                 task.wait(1)
                 VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
             end)
-            print("✅ Anti Turu aktif")
         else
             if antiAfkConnection then
                 antiAfkConnection:Disconnect()
                 antiAfkConnection = nil
             end
-            print("❌ Anti Turu dimatikan")
         end
     end,
 })
