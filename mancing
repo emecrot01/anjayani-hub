@@ -199,23 +199,31 @@ end
 -- ====== TAB 1: Home 🏠======
 local TabHome = Window:CreateTab("🏠 Home")
  
-TabHome:CreateLabel("Fish It🐟 v1.0")
+TabHome:CreateLabel("Fish It🐟 v1.2")
  
 -- 🔥 Tambahan: Section Changelog
 TabHome:CreateSection("📜 Changelog")
  
 TabHome:CreateParagraph({
-    Title = "Fish It🐟 v1.0",
+    Title = "Fish It🐟 v1.2",
     Content = [[
-🎉 Fitur Yang Tersedia:
+📢 Fitur Yang Tersedia:
 - Auto Fishing 🎣
-(Sistem Delay, Auto Fishing)
+Sistem Delay, Auto Fishing
 - Auto Sell 💰
-(Text Box Set, Auto Sell)
+Text Box Set, Auto Sell
 - Teleport 🏝️
-(Ya teleport, Apalagi Coba 🗿)
+Ya teleport, Apalagi Coba 🗿
+
+🔔 Fitur Baru
+- Weather Shop 🏪🔆
+Menambahkan Fitur Membeli Cuaca Dari Weather Machine
+List Cuaca:
+• Wind 💨    • Storm ⛈️
+• Cloudy ☁️  • Radiant ✨
+• Snow ❄️    • Shark Hunt 🦈
 - Utility ⚙️
-(WalkSpeed/JumpPower, Inf Jump, Infinity Oxygen, Anti AFK)
+WalkSpeed/JumpPower, Inf Jump, Infinity Oxygen, Anti AFK
     ]]
 })
 
@@ -339,8 +347,7 @@ TabTeleport:CreateParagraph({
 })
 
 -- ====== TAB 5: Weather Shop 🏪🔆  ======
-local TabWeather = Window:CreateTab("Weather Shop 🏪🔆", 4483362458) 
-local SectionWeather = TabWeather:CreateSection("Buy Special Weather")
+local TabWeather = Window:CreateTab("Weather Shop 🏪🔆") 
 
 -- Helper beli cuaca
 local function buyWeather(weatherName, displayName)
@@ -371,42 +378,42 @@ end
 
 -- Daftar tombol
 TabWeather:CreateButton({
-    Name = "Wind 💨 ($10K 🪙)",
+    Name = "Wind 💨 ($10K 💰)",
     Callback = function()
         buyWeather("Wind", "Wind 💨")
     end
 })
 
 TabWeather:CreateButton({
-    Name = "Cloudy ☁️ ($20K 🪙)",
+    Name = "Cloudy ☁️ ($20K 💰)",
     Callback = function()
         buyWeather("Cloudy", "Cloudy ☁️")
     end
 })
 
 TabWeather:CreateButton({
-    Name = "Snow ❄️ ($15K 🪙)",
+    Name = "Snow ❄️ ($15K 💰)",
     Callback = function()
         buyWeather("Snow", "Snow ❄️")
     end
 })
 
 TabWeather:CreateButton({
-    Name = "Storm ⛈️ ($35K 🪙)",
+    Name = "Storm ⛈️ ($35K 💰)",
     Callback = function()
         buyWeather("Storm", "Storm ⛈️")
     end
 })
 
 TabWeather:CreateButton({
-    Name = "Radiant ✨ ($50K 🪙)",
+    Name = "Radiant ✨ ($50K 💰)",
     Callback = function()
         buyWeather("Radiant", "Radiant ✨")
     end
 })
 
 TabWeather:CreateButton({
-    Name = "Shark Hunt 🦈 ($300K 🪙)",
+    Name = "Shark Hunt 🦈 ($300K 💰)",
     Callback = function()
         buyWeather("Shark Hunt", "Shark Hunt 🦈")
     end
