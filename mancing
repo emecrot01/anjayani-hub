@@ -3,8 +3,8 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- Notif Startup
 Rayfield:Notify({
-Title = "Sabar Ya Anj",
-Content = "Loading 🗿🖕🏻",
+Title = "Sabar Bngst 🗿🖕🏻",
+Content = "Lagi Loading",
 Duration = 5,
 })
 
@@ -212,13 +212,13 @@ end
 -- ====== TAB 1: Home 🏠======
 local TabHome = Window:CreateTab("🏠 Home")
  
-TabHome:CreateLabel("Fish It🐟 v1.2")
+TabHome:CreateLabel("Fish It🐟 v1.3")
  
 -- 🔥 Tambahan: Section Changelog
 TabHome:CreateSection("📜 Changelog")
  
 TabHome:CreateParagraph({
-    Title = "Fish It🐟 v1.2",
+    Title = "Fish It🐟 v1.3",
     Content = [[
 📢 Fitur Yang Tersedia:
 - Auto Fishing 🎣
@@ -227,8 +227,6 @@ Sistem Delay, Auto Fishing
 Text Box Set, Auto Sell
 - Teleport 🏝️
 Ya teleport, Apalagi Coba 🗿
-
-🔔 Fitur Baru
 - Weather Shop 🏪🔆
 Menambahkan Fitur Membeli Cuaca Dari Weather Machine
 List Cuaca:
@@ -237,6 +235,9 @@ List Cuaca:
 • Snow ❄️    • Shark Hunt 🦈
 - Utility ⚙️
 WalkSpeed/JumpPower, Inf Jump, Infinity Oxygen, Anti AFK
+
+🔀 Changed
+New UI For Teleport & Shop (Dropdown System)
     ]]
 })
 
