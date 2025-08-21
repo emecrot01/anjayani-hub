@@ -167,14 +167,16 @@ end
 local teleportLocations = {
     { Name = "Stingray Shores 🐠", Pos = Vector3.new(19.035, 15, 2889.627) },
     { Name = "Kohana Island 🏝️", Pos = Vector3.new(-642.76, 19, 618.787) },
-    { Name = "Kohana Volcano 🌋", Pos = Vector3.new(-523.946, 30, 188.882) },
+    { Name = "Kohana Volcano 🌋", Pos = Vector3.new(-596.92, 64, 105.63) },
     { Name = "Coral Reefs 🐚", Pos = Vector3.new(-2797.356, 15, 2110.986) },
-    { Name = "Esoteric Depths 🌌", Pos = Vector3.new(2025.875, 30, 1392.24) },
+    { Name = "Esoteric Island 🏝️ 🌌", Pos = Vector3.new(2025.875, 30, 1392.24) },
+    { Name = "Esoteric Depth 🌌", Pos = Vector3.new(3211.25, -1297, 1412.00) },
     { Name = "Tropical Grove 🌴", Pos = Vector3.new(-2046.46, 13, 3658.995) },
     { Name = "Crater Island ⛰️", Pos = Vector3.new(863.528, 40, 4946.208) },
     { Name = "Lost Isle (Sisyphus Statue) 🔱", Pos = Vector3.new(-3693.872, -132, -1042.617) },
     { Name = "Lost Isle (Treasure Hall) 💎", Pos = Vector3.new(-3600.823, -313, -1405.601) },
-    { Name = "Lost Isle (Treasure Room) 🏴‍☠️", Pos = Vector3.new(-3600.215, -262, -1570.752) },
+    { Name = "Lost Isle (Treasure Room) 🏴‍☠️", Pos = Vector3.new(-3598.215, -280, -1640.74) },
+    { Name = "Weather Machine Island 🕰️", Pos = Vector3.new(-1503.27, 8, 1909.59) },
 }
 
 -- ====== TELEPORT FUNCTION ======
@@ -194,6 +196,17 @@ local function teleportTo(targetPos, locationName)
             Duration = 3
         })
     end
+end
+
+-- ====== NAMA → POSISI (BIAR MUDAH DIPANGGIL) ======
+local NAME_TO_POS = {}
+for _, loc in ipairs(teleportLocations) do
+    NAME_TO_POS[loc.Name] = loc.Pos
+end
+
+-- Helper: pastikan pilihan jadi string
+local function pickName(v)
+    return (type(v) == "table") and v[1] or v
 end
 
 -- ====== TAB 1: Home 🏠======
@@ -328,15 +341,46 @@ TabSell:CreateParagraph({
 -- ====== TAB 4: TELEPORT ✈️ ======
 local TabTeleport = Window:CreateTab("Teleport ✈️")
 
-for _, data in ipairs(teleportLocations) do
-    TabTeleport:CreateButton({
-        Name = data.Name,
-        Callback = function()
-            teleportTo(data.Pos, data.Name)
-        end,
-    })
+-- Kumpulkan semua nama lokasi
+local locationNames = {}
+for _, loc in ipairs(teleportLocations) do
+    table.insert(locationNames, loc.Name)
 end
 
+-- Pilihan awal (default ke lokasi pertama)
+local selectedLocation = locationNames[1]
+
+-- Dropdown: Select Map 🗺️
+local Dropdown = TabTeleport:CreateDropdown({
+    Name = "Select Map 🗺️",
+    Options = locationNames,
+    CurrentOption = locationNames[1],
+    Callback = function(Value)
+        selectedLocation = pickName(Value)
+        -- print("Selected:", selectedLocation)
+    end,
+})
+
+-- (Opsional) Set default pilihan di UI
+pcall(function() Dropdown:Set(locationNames[1]) end)
+
+-- Button: Teleport ✈️
+TabTeleport:CreateButton({
+    Name = "Teleport ✈️",
+    Callback = function()
+        local choice = pickName(selectedLocation)
+        local pos = NAME_TO_POS[choice]
+        if pos then
+            teleportTo(pos, choice)
+        else
+            Rayfield:Notify({
+                Title = "Teleport ✈️",
+                Content = "Pilih map dulu / pilihan tidak valid 🗿",
+                Duration = 3
+            })
+        end
+    end,
+})
 -- Section + Tutorial
 TabTeleport:CreateSection("📚 Tutorial 📚")
 TabTeleport:CreateParagraph({
@@ -346,10 +390,13 @@ TabTeleport:CreateParagraph({
     ]]
 })
 
--- ====== TAB 5: Weather Shop 🏪🔆  ======
-local TabWeather = Window:CreateTab("Weather Shop 🏪🔆") 
+-- ====== TAB 5: Shop 🏪 ======
+local TabShop = Window:CreateTab("Shop 🏪") 
 
--- Helper beli cuaca
+-- ====== SECTION: WEATHER SHOP 🔆 ======
+local SectionWeather = TabShop:CreateSection("Weather Shop 🔆")
+
+-- ====== HELPER BELI CUACA ======
 local function buyWeather(weatherName, displayName)
     local ok, result = pcall(function()
         return game:GetService("ReplicatedStorage")
@@ -360,71 +407,82 @@ local function buyWeather(weatherName, displayName)
             :WaitForChild("RF/PurchaseWeatherEvent")
             :InvokeServer(weatherName)
     end)
-
+ 
     if ok and result then
         Rayfield:Notify({
-            Title = "Buying Successfully✅",
-            Content = "Thankyou Sultan 👑💰: " .. displayName,
-            Duration = 1
+            Title = "Buying Successfully ✅",
+            Content = "Thankyou Sultan 👑💰",
+            Duration = 3
         })
     else
         Rayfield:Notify({
-            Title = "Buying Fail❌",
-            Content = "Minggir Lu Miskien🗿🖕🏻",
-            Duration = 1
+            Title = "Buying Fail ❌",
+            Content = "Cek Udah Beli Atau Duit Kurang, Kalau Kurang. MISKIN GAUSH BELAGU🗿🖕🏻",
+            Duration = 3
         })
     end
 end
 
--- Daftar tombol
-TabWeather:CreateButton({
-    Name = "Wind 💨 ($10K 💰)",
-    Callback = function()
-        buyWeather("Wind", "Wind 💨")
-    end
+-- ====== DATA WEATHER ======
+local weathers = {
+    { Name = "Wind 💨 ($10K 💰)",      Id = "Wind",       Display = "Wind 💨" },
+    { Name = "Cloudy ☁️ ($20K 💰)",   Id = "Cloudy",    Display = "Cloudy ☁️" },
+    { Name = "Snow ❄️ ($15K 💰)",     Id = "Snow",      Display = "Snow ❄️" },
+    { Name = "Storm ⛈️ ($35K 💰)",    Id = "Storm",     Display = "Storm ⛈️" },
+    { Name = "Radiant ✨ ($50K 💰)",   Id = "Radiant",   Display = "Radiant ✨" },
+    { Name = "Shark Hunt 🦈 ($300K 💰)", Id = "Shark Hunt", Display = "Shark Hunt 🦈" },
+}
+
+-- Buat list nama untuk dropdown
+local weatherNames = {}
+for _, w in ipairs(weathers) do
+    table.insert(weatherNames, w.Name)
+end
+
+-- ====== VARIABEL PILIHAN (default ke Wind) ======
+local selectedWeather = weatherNames[1]
+
+-- ====== DROPDOWN: SELECT WEATHER 🛒 ======
+local DropdownWeather = TabShop:CreateDropdown({
+    Name = "Select Weather 🛒",
+    Options = weatherNames,
+    CurrentOption = weatherNames[1], -- default Wind
+    Callback = function(Value)
+        if type(Value) == "table" then Value = Value[1] end
+        selectedWeather = Value
+    end,
 })
 
-TabWeather:CreateButton({
-    Name = "Cloudy ☁️ ($20K 💰)",
-    Callback = function()
-        buyWeather("Cloudy", "Cloudy ☁️")
-    end
-})
+-- (Opsional) Set default ke Wind di UI
+pcall(function() DropdownWeather:Set(weatherNames[1]) end)
 
-TabWeather:CreateButton({
-    Name = "Snow ❄️ ($15K 💰)",
+-- ====== BUTTON: BUY WEATHER 💲 ======
+TabShop:CreateButton({
+    Name = "Buy Weather 💲",
     Callback = function()
-        buyWeather("Snow", "Snow ❄️")
-    end
-})
-
-TabWeather:CreateButton({
-    Name = "Storm ⛈️ ($35K 💰)",
-    Callback = function()
-        buyWeather("Storm", "Storm ⛈️")
-    end
-})
-
-TabWeather:CreateButton({
-    Name = "Radiant ✨ ($50K 💰)",
-    Callback = function()
-        buyWeather("Radiant", "Radiant ✨")
-    end
-})
-
-TabWeather:CreateButton({
-    Name = "Shark Hunt 🦈 ($300K 💰)",
-    Callback = function()
-        buyWeather("Shark Hunt", "Shark Hunt 🦈")
-    end
+        if not selectedWeather then
+            Rayfield:Notify({
+                Title = "Shop 🏪",
+                Content = "Pilih Cuacanya Bre🗿",
+                Duration = 2
+            })
+            return
+        end
+        for _, w in ipairs(weathers) do
+            if w.Name == selectedWeather then
+                buyWeather(w.Id, w.Display)
+                break
+            end
+        end
+    end,
 })
 
 -- Section + Tutorial
-TabWeather:CreateSection("📚 Tutorial 📚")
-TabWeather:CreateParagraph({
+TabShop:CreateSection("📚 Tutorial 📚")
+TabShop:CreateParagraph({
     Title = "By Mammoth👑",
     Content = [[
-• Tinggal Pilih Mau Beli Cuaca Yang Mana, Minimal Jangan Miskin Aja🗿
+• Tinggal Pilih Mau Beli Yang Mana, Minimal Jangan Miskin Aja🗿
     ]]
 })
 
