@@ -3,9 +3,9 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- Notif Startup
 Rayfield:Notify({
-    Title = "Sabar Ya Anj",
-    Content = "Loading 🗿🖕🏻",
-    Duration = 5,
+    Title = "Sabar Bngst🗿🖕🏻",
+    Content = "Lagi Loading",
+    Duration = 4,
 })
  
 -- Window
