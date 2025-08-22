@@ -457,15 +457,15 @@ for _, rarity in ipairs(raritiesLock) do
     autoLockState[rarity.Name] = false
 end
 
--- Random delay biar aman (anti cheat detect pattern)
+-- Anti pola (random delay)
 local function rand_delay()
     task.wait(math.random(5,25)/100) -- 0.05 - 0.25s
 end
 
--- Fungsi kirim remote (hybrid: Invoke dulu, fallback Fire)
+-- Remote wrapper
 local function safeToggleLock(item)
-    local success, result = pcall(function()
-        return ToggleLockRemote:InvokeServer(item)
+    local success = pcall(function()
+        ToggleLockRemote:InvokeServer(item)
     end)
     if not success then
         pcall(function()
@@ -474,7 +474,7 @@ local function safeToggleLock(item)
     end
 end
 
--- Fungsi lock item kalau sesuai rarity
+-- Fungsi lock item
 local function lockItem(item)
     if not item:IsA("Tool") then return end
     local rarity = item:GetAttribute("Rarity")
@@ -482,18 +482,26 @@ local function lockItem(item)
 
     if rarity and autoLockState[rarity] and not isLocked then
         safeToggleLock(item)
-        item:SetAttribute("Locked", true) -- biar langsung kebaca di client
+        item:SetAttribute("Locked", true) -- update client agar langsung terbaca
         rand_delay()
     end
 end
 
--- Event: langsung lock kalau ada item baru
+-- Event: item baru ditambah → coba lock
 Backpack.ChildAdded:Connect(function(tool)
-    task.wait(0.1) -- tunggu attribute kebaca
+    task.wait(0.1) -- tunggu attribute sync
     lockItem(tool)
+
+    -- Tambah listener kalau item ini manual di-unlock → lock ulang
+    tool.AttributeChanged:Connect(function(attr)
+        if attr == "Locked" then
+            task.wait(0.05)
+            lockItem(tool)
+        end
+    end)
 end)
 
--- Loop: sweeping isi backpack (buat re-lock item lama / yang kamu buka manual)
+-- Loop sweeping isi backpack (backup / re-lock item lama / manual unlock)
 task.spawn(function()
     while true do
         for _, tool in ipairs(Backpack:GetChildren()) do
@@ -503,7 +511,7 @@ task.spawn(function()
     end
 end)
 
--- Buat toggle di UI
+-- UI: toggle per rarity
 for _, rarity in ipairs(raritiesLock) do
     TabLock:CreateToggle({
         Name = rarity.Emoji .. " Auto Lock " .. rarity.Name,
@@ -513,8 +521,8 @@ for _, rarity in ipairs(raritiesLock) do
         end
     })
 end
- 
--- Unlock All button (instant, dengan notif)
+
+-- Unlock All 🔓
 TabLock:CreateButton({
     Name = "Unlock All 🔓",
     Callback = function()
@@ -522,13 +530,13 @@ TabLock:CreateButton({
         for _, item in ipairs(Backpack:GetChildren()) do
             if item:IsA("Tool") and item:GetAttribute("Rarity") and item:GetAttribute("Locked") then
                 pcall(function()
-                    ToggleLockRemote:FireServer(item)
-                    item:SetAttribute("Locked", false) -- gunakan false, bukan nil
+                    ToggleLockRemote:InvokeServer(item)
+                    task.wait(0.05)
                     unlocked += 1
                 end)
             end
         end
- 
+
         Rayfield:Notify({
             Title = "Unlock All",
             Content = string.format("%d item(s) unlocked.", unlocked),
