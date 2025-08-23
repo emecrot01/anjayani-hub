@@ -44,20 +44,35 @@ findRemotes()
 -- ====== STATE ======
 local fishingActive = false
 local autoSellActive = false
-local targetFishCount = nil -- default kosong
+local targetFishCount = nil
 local currentFishCount = 0
 local isAutoFishLoopRunning = false
-local fishingDelay = 1.0 -- default, bisa diubah lewat slider
+local fishingDelay = 1.0 -- slider
 
 -- ====== STOP FUNCTION ======
 local function stopFishing()
     fishingActive = false
-    currentFishCount = 0 -- reset counter
-    isAutoFishLoopRunning = false -- reset biar bisa start lagi
+    currentFishCount = 0
+    isAutoFishLoopRunning = false
     print("[Mammoth Fish It] Fishing stopped and state reset")
 end
 
--- ====== AUTO FISH LOOP (Optimized Delay + Failsafe) ======
+-- ====== SAFE COMPLETE ======
+local function safeComplete()
+    for i = 1, 2 do
+        local ok = pcall(function()
+            FishingComplete:FireServer()
+        end)
+        if ok then
+            print("[Mammoth Fish It] FishingComplete sent")
+        else
+            warn("[Mammoth Fish It] Failed to send FishingComplete")
+        end
+        task.wait(0.4 + math.random() * 0.2)
+    end
+end
+
+-- ====== AUTO FISH LOOP ======
 local function autoFishLoop()
     local notifyCooldown = 0
     isAutoFishLoopRunning = true
@@ -94,8 +109,8 @@ local function autoFishLoop()
             continue
         end
 
-        -- Delay cast (0.15 - 0.25 detik)
-        task.wait(0.15 + math.random() * 0.1)
+        -- Delay cast (0.1 - 0.2s)
+        task.wait(0.1 + math.random() * 0.1)
 
         -- Start Minigame
         pcall(function()
@@ -106,29 +121,20 @@ local function autoFishLoop()
             end
         end)
 
-        -- Tunggu sebelum complete (0.7 - 1.4 detik) ✅ FIXED
-        task.wait(0.7 + math.random() * 0.7)
+        -- Tunggu (1.2 - 1.5s)
+        task.wait(1.2 + math.random() * 0.3)
 
-        -- Complete Fishing (pakai failsafe 2x)
-        local function safeComplete()
-            for i = 1, 2 do
-                local ok = pcall(function()
-                    FishingComplete:FireServer()
-                end)
-                if ok then
-                    print("[Mammoth Fish It] FishingComplete sent")
-                else
-                    warn("[Mammoth Fish It] Failed to send FishingComplete")
-                end
-                task.wait(0.4 + math.random() * 0.2)
-            end
-        end
+        -- Hampir Complete (1.3 - 1.5s)
+        task.wait(1.3 + math.random() * 0.2)
+
+        -- Complete Fishing (1.1s pasti)
+        task.wait(1.1)
         safeComplete()
 
         currentFishCount += 1
         print(("[Mammoth Fish It] Caught fish #%d"):format(currentFishCount))
 
-        -- 🔹 Auto Sell check
+        -- ====== Auto Sell Check ======
         if autoSellActive and SellAll and targetFishCount and currentFishCount >= targetFishCount then
             local ok, err = pcall(function()
                 if SellAll.InvokeServer then
@@ -144,22 +150,24 @@ local function autoFishLoop()
                     Duration = 3
                 })
                 currentFishCount = 0
+
+                -- Jeda 1.5–2s biar rod ready lagi
+                task.wait(1.5 + math.random() * 0.5)
             else
                 warn("[Mammoth Fish It] SellAll failed:", err)
             end
         end
 
-        -- 🔹 Emergency reset kalau 1 cycle terlalu lama
+        -- Emergency reset kalau cycle > 5s
         if tick() - cycleStart > 5 then
             warn("[Mammoth Fish It] Emergency reset triggered")
             safeComplete()
         end
 
-        -- 🔹 Slider-based interval (buat kontrol speed loop)
+        -- Slider Delay
         task.wait(fishingDelay)
     end
 
-    -- keluar loop = stop otomatis
     isAutoFishLoopRunning = false
 end
 
