@@ -18,13 +18,10 @@ local Window = Rayfield:CreateWindow({
  
 -- TAB 1: Home 🏠
 local TabHome = Window:CreateTab("Home 🏠")
- 
-TabHome:CreateLabel("Prospecting! 💎 v1.2")
- 
+TabHome:CreateLabel("Prospecting! 💎 v1.3")
 TabHome:CreateSection("Changelog")
- 
 TabHome:CreateParagraph({
-    Title = "Prospecting! 💎 v1.2",
+    Title = "Prospecting! 💎 v1.3",
     Content = [[
 🎉 Fitur Yang Tersedia:
 • Auto Farm ⛏️
@@ -41,9 +38,9 @@ TabHome:CreateParagraph({
   Sistem Sama Seperti Sell (Toggle) + Unlock All 🔓
 
 🛠️ Fixed
-• Menambahkan Delay System Untuk Auto Farm (Smooth TP, Instant TP)
-• Menambahkan Delay System Untuk Auto Sell
-• Menambahkan Delay System Untuk Auto Lock
+• Memperbarui Sistem Auto Sell & Auto Lock Yang Mengalami Error
+• Mengetes Sistem Baru (Sell Anywhere) Hanya Berfungsi Jika Memiliki Gamepass (BETA)
+
     ]]
 })
 
@@ -283,7 +280,7 @@ local TabSell = Window:CreateTab("Auto Sell 💰")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
-local Backpack = LocalPlayer:WaitForChild("Backpack")
+local Backpack = LocalPlayer:WaitForChild("BackpackTwo") -- pake BackpackTwo biar konsisten Auto Lock
 
 -- Remote (HARUS InvokeServer)
 local SellItemRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellItem")
@@ -310,6 +307,8 @@ local function q_push(tool)
     q.tail += 1
     q.data[q.tail] = tool
     queued[tool] = true
+    -- debug
+    -- print("Queue push:", tool.Name, tool:GetAttribute("Rarity"))
 end
 
 local function q_pop()
@@ -338,17 +337,18 @@ local function isSellable(tool)
     return true
 end
 
--- InvokeServer wrapper
+-- InvokeServer wrapper (update sistem sell + Sell Anywhere)
 local function safeInvokeSell(tool)
     rand_delay()
     if not isSellable(tool) then return false end
+    local args = { tool }
     local ok, res = pcall(function()
-        return SellItemRemote:InvokeServer(tool)
+        return SellItemRemote:InvokeServer(unpack(args))
     end)
     if not ok then
         rand_delay()
         ok, res = pcall(function()
-            return SellItemRemote:InvokeServer(tool)
+            return SellItemRemote:InvokeServer(unpack(args))
         end)
     end
     return ok and (res == true or res == "Success")
@@ -387,21 +387,21 @@ local MAX_PER_SWEEP = 15
 for i = 1, WORKERS do
     task.spawn(function()
         while true do
-            local takeN = math.random(5, MAX_PER_SWEEP) -- ambil 5–15 item sekaligus
+            local takeN = math.random(5, MAX_PER_SWEEP)
             for _ = 1, takeN do
                 local tool = q_pop()
                 if not tool then break end
                 if isSellable(tool) then
                     safeInvokeSell(tool)
-                    task.wait(math.random(3, 15) / 100) -- delay 0.03–0.15s per item
+                    task.wait(math.random(3, 15)/100) -- delay 0.03–0.15s per item
                 end
             end
-            task.wait(math.random(5, 20) / 100) -- istirahat antar sweep 0.05–0.2s
+            task.wait(math.random(5, 20)/100) -- istirahat antar sweep 0.05–0.2s
         end
     end)
 end
 
--- UI: Toggle per rarity
+-- UI: Toggle per rarity (gabung Sell Anywhere otomatis)
 for _, r in ipairs(raritiesSell) do
     TabSell:CreateToggle({
         Name = r.Emoji .. " Auto Sell " .. r.Name,
@@ -412,21 +412,6 @@ for _, r in ipairs(raritiesSell) do
     })
 end
 
--- Tombol: Matikan semua
-TabSell:CreateButton({
-    Name = "❌ Matikan Semua Auto Sell",
-    Callback = function()
-        for _, r in ipairs(raritiesSell) do
-            autoSellState[r.Name] = false
-        end
-        Rayfield:Notify({
-            Title = "Auto Sell",
-            Content = "Semua auto sell dimatikan.",
-            Duration = 2
-        })
-    end
-})
-
 -- TAB 4: Auto Lock 🔒
 local TabLock = Window:CreateTab("Auto Lock 🔒")
 
@@ -435,7 +420,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
-local Backpack = LocalPlayer:WaitForChild("Backpack")
+local Backpack = LocalPlayer:WaitForChild("BackpackTwo")
 
 -- Remote
 local ToggleLockRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Inventory"):WaitForChild("ToggleLock")
@@ -457,42 +442,30 @@ for _, rarity in ipairs(raritiesLock) do
     autoLockState[rarity.Name] = false
 end
 
--- Anti pola (random delay)
-local function rand_delay()
-    task.wait(math.random(5,25)/100) -- 0.05 - 0.25s
+-- Random delay auto lock / sweep loop
+local function rand_delay(min, max)
+    task.wait(math.random(min, max)/100)
 end
 
--- Remote wrapper
-local function safeToggleLock(item)
-    local success = pcall(function()
-        ToggleLockRemote:InvokeServer(item)
-    end)
-    if not success then
-        pcall(function()
-            ToggleLockRemote:FireServer(item)
-        end)
-    end
-end
-
--- Fungsi lock item
+-- Fungsi lock item (auto)
 local function lockItem(item)
     if not item:IsA("Tool") then return end
     local rarity = item:GetAttribute("Rarity")
     local isLocked = item:GetAttribute("Locked")
 
     if rarity and autoLockState[rarity] and not isLocked then
-        safeToggleLock(item)
-        item:SetAttribute("Locked", true) -- update client agar langsung terbaca
-        rand_delay()
+        pcall(function()
+            ToggleLockRemote:FireServer(item)
+        end)
+        rand_delay(5,10) -- 0.05 - 0.1 s
     end
 end
 
--- Event: item baru ditambah → coba lock
+-- Event: item baru masuk → auto lock
 Backpack.ChildAdded:Connect(function(tool)
-    task.wait(0.1) -- tunggu attribute sync
+    task.wait(0.1)
     lockItem(tool)
 
-    -- Tambah listener kalau item ini manual di-unlock → lock ulang
     tool.AttributeChanged:Connect(function(attr)
         if attr == "Locked" then
             task.wait(0.05)
@@ -501,13 +474,13 @@ Backpack.ChildAdded:Connect(function(tool)
     end)
 end)
 
--- Loop sweeping isi backpack (backup / re-lock item lama / manual unlock)
+-- Loop sweeping isi backpack (auto re-lock)
 task.spawn(function()
     while true do
         for _, tool in ipairs(Backpack:GetChildren()) do
             lockItem(tool)
         end
-        task.wait(math.random(40,70)/100) -- 0.40 - 0.70s antar sweep
+        rand_delay(5,10) -- 0.05 - 0.1 s
     end
 end)
 
@@ -522,18 +495,18 @@ for _, rarity in ipairs(raritiesLock) do
     })
 end
 
--- Unlock All 🔓
+-- Unlock All 🔓 (fixed delay 0.05 s per item)
 TabLock:CreateButton({
     Name = "Unlock All 🔓",
     Callback = function()
         local unlocked = 0
         for _, item in ipairs(Backpack:GetChildren()) do
-            if item:IsA("Tool") and item:GetAttribute("Rarity") and item:GetAttribute("Locked") then
+            if item:IsA("Tool") and item:GetAttribute("Locked") then
                 pcall(function()
-                    ToggleLockRemote:InvokeServer(item)
-                    task.wait(0.05)
+                    ToggleLockRemote:FireServer(item)
                     unlocked += 1
                 end)
+                task.wait(0.05) -- fixed
             end
         end
 
