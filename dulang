@@ -36,6 +36,8 @@ TabHome:CreateParagraph({
   Sistem Sell Sudah Di Buat Per Rarity (Toggle) + Support Sell Anywhere Gamepass 
 • Auto Favorite 🌟
   Sistem Sama Seperti Sell (Toggle) + Unlock All 🔓
+• Teleport ✈️
+  Ya Teleport 🗿
 
 🛠️ Fixed
 • Ajust Auto Sell & Auto Lock Di Patch Terbaru Agar Menghindari Tabrakan Item
@@ -546,4 +548,43 @@ TabLock:CreateButton({
             Duration = 3
         })
     end
+})
+
+-- TAB 5: Teleport ✈️
+local Tab = Window:CreateTab("Teleport NPC ✈️")
+ 
+Tab:CreateButton({
+    Name = "TP Traveling Merchant 👨‍💼🛒",
+    Callback = function()
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+ 
+        local targetName = "Traveling Merchant" -- pakai Model.Name
+ 
+        local found = false
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("Model") and obj.Name == targetName then
+                local hrp = obj:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    Character:MoveTo(hrp.Position + Vector3.new(0, 3, 0))
+                    Rayfield:Notify({
+                        Title = "Teleport Sukses ✅",
+                        Content = "Berhasil Teleport Ke Traveling Merchant 👨‍💼🛒",
+                        Duration = 4,
+                    })
+                    found = true
+                    break
+                end
+            end
+        end
+ 
+        if not found then
+            Rayfield:Notify({
+                Title = "Teleport Gagal ❌",
+                Content = "Traveling Merchant Belum Spawn BLOKK 🗿🖕🏻",
+                Duration = 4,
+            })
+        end
+    end,
 })
