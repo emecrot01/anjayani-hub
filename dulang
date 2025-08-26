@@ -36,8 +36,6 @@ TabHome:CreateParagraph({
   Sistem Sell Sudah Di Buat Per Rarity (Toggle) + Support Sell Anywhere Gamepass 
 • Auto Favorite 🌟
   Sistem Sama Seperti Sell (Toggle) + Unlock All 🔓
-• Teleport ✈️
-  Ya Teleport 🗿
 
 🛠️ Fixed
 • Ajust Auto Sell & Auto Lock Di Patch Terbaru Agar Menghindari Tabrakan Item
@@ -418,17 +416,17 @@ end
 
 -- TAB 4: Auto Lock 🔒
 local TabLock = Window:CreateTab("Auto Lock 🔒")
-
+ 
 -- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
+ 
 local LocalPlayer = Players.LocalPlayer
 local Backpack = LocalPlayer:WaitForChild("BackpackTwo")
-
+ 
 -- Remote
 local ToggleLockRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Inventory"):WaitForChild("ToggleLock")
-
+ 
 -- Rarity list khusus Lock
 local raritiesLock = {
     {Name = "Common",    Emoji = "⚪"},
@@ -439,31 +437,34 @@ local raritiesLock = {
     {Name = "Mythic",    Emoji = "🔴"},
     {Name = "Exotic",    Emoji = "💎"},
 }
-
+ 
 -- State lock toggle
 local autoLockState = {}
 for _, r in ipairs(raritiesLock) do
     autoLockState[r.Name] = false
 end
-
--- Random delay helper (TETEP 0.05–0.1 s)
-local function rand_delay(min, max)
-    task.wait(math.random(min, max)/100)
+ 
+-- Random delay helper (0.20–0.35 s)
+local function rand_delay()
+    task.wait(math.random(20, 35) / 100)
 end
-
--- ========== Queue + Workers ==========
+ 
+-- Queue + Workers
 local lockQueue = {}
 local function queueLock(item)
     if not item or not item:IsA("Tool") then return end
     if item.Parent ~= Backpack then return end
+ 
     local rarity = item:GetAttribute("Rarity")
     local isLocked = item:GetAttribute("Locked")
-    if rarity and autoLockState[rarity] and not isLocked then
+ 
+    -- Masukin queue hanya kalau: rarity aktif & item belum locked
+    if rarity and autoLockState[rarity] and (isLocked == false or isLocked == nil) then
         table.insert(lockQueue, item)
     end
 end
-
-local MAX_WORKERS = 6
+ 
+local MAX_WORKERS = 3
 local function worker()
     while true do
         local item = table.remove(lockQueue, 1)
@@ -471,7 +472,7 @@ local function worker()
             pcall(function()
                 ToggleLockRemote:FireServer(item)
             end)
-            rand_delay(5, 10) -- 0.05–0.1s per item (sesuai permintaan)
+            rand_delay() -- tunggu 0.20–0.35 detik
         else
             task.wait(0.1)
         end
@@ -480,34 +481,37 @@ end
 for i = 1, MAX_WORKERS do
     task.spawn(worker)
 end
-
+ 
 -- Events
 Backpack.ChildAdded:Connect(function(tool)
     task.wait(0.1)
     queueLock(tool)
+ 
     tool.AttributeChanged:Connect(function(attr)
         if attr == "Locked" then
-            task.wait(0.05)
-            queueLock(tool)
+            -- Tambah ke queue hanya kalau kembali jadi unlocked
+            if tool:GetAttribute("Locked") == false then
+                queueLock(tool)
+            end
         end
     end)
 end)
-
+ 
 -- Sweep isi backpack berkala (re-lock jika perlu)
 task.spawn(function()
     while true do
         for _, tool in ipairs(Backpack:GetChildren()) do
             queueLock(tool)
         end
-        rand_delay(5, 10)
+        task.wait(5) -- sweeping tiap 5 detik
     end
 end)
-
+ 
 -- ==== UI (URUTAN SESUAI PERMINTAAN)
-
+ 
 -- 1) local section: Lock Ore 💎
 local SectionLockOre = TabLock:CreateSection("Lock Ore 💎")
-
+ 
 -- 2) lock system (toggle Common → Exotic)
 for _, r in ipairs(raritiesLock) do
     TabLock:CreateToggle({
@@ -516,7 +520,7 @@ for _, r in ipairs(raritiesLock) do
         Callback = function(state)
             autoLockState[r.Name] = state
             if state then
-                -- Saat diaktifkan, langsung scan backpack dan masukin ke queue
+                -- Saat toggle diaktifkan, langsung scan backpack
                 for _, tool in ipairs(Backpack:GetChildren()) do
                     queueLock(tool)
                 end
@@ -524,10 +528,10 @@ for _, r in ipairs(raritiesLock) do
         end
     })
 end
-
+ 
 -- 3) local section: Unlock System 🔓
 local SectionUnlock = TabLock:CreateSection("Unlock System 🔓")
-
+ 
 -- 4) unlock all (fitur bawaan script)
 TabLock:CreateButton({
     Name = "Unlock All 🔓",
@@ -539,7 +543,7 @@ TabLock:CreateButton({
                     ToggleLockRemote:FireServer(item)
                     unlocked += 1
                 end)
-                task.wait(0.05) -- fixed per item
+                task.wait(0.05)
             end
         end
         Rayfield:Notify({
@@ -552,16 +556,16 @@ TabLock:CreateButton({
 
 -- TAB 5: Teleport ✈️
 local Tab = Window:CreateTab("Teleport NPC ✈️")
- 
+
 Tab:CreateButton({
     Name = "TP Traveling Merchant 👨‍💼🛒",
     Callback = function()
         local Players = game:GetService("Players")
         local LocalPlayer = Players.LocalPlayer
         local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
- 
+
         local targetName = "Traveling Merchant" -- pakai Model.Name
- 
+
         local found = false
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj:IsA("Model") and obj.Name == targetName then
@@ -578,7 +582,7 @@ Tab:CreateButton({
                 end
             end
         end
- 
+
         if not found then
             Rayfield:Notify({
                 Title = "Teleport Gagal ❌",
