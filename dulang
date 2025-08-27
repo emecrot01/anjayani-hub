@@ -18,10 +18,10 @@ local Window = Rayfield:CreateWindow({
  
 -- TAB 1: Home 🏠
 local TabHome = Window:CreateTab("Home 🏠")
-TabHome:CreateLabel("Prospecting! 💎 v1.4")
+TabHome:CreateLabel("Prospecting! 💎 v1.5")
 TabHome:CreateSection("Changelog")
 TabHome:CreateParagraph({
-    Title = "Prospecting! 💎 v1.4",
+    Title = "Prospecting! 💎 v1.5",
     Content = [[
 🎉 Fitur Yang Tersedia:
 • Auto Farm ⛏️
@@ -36,6 +36,10 @@ TabHome:CreateParagraph({
   Sistem Sell Sudah Di Buat Per Rarity (Toggle) + Support Sell Anywhere Gamepass 
 • Auto Favorite 🌟
   Sistem Sama Seperti Sell (Toggle) + Unlock All 🔓
+• TP Traveling Merchant 
+  (Hany Bisa TP Ke Merchant Jika Berada Di Pulau Yang Sama)  NEW
+• Enchant Anywhere 
+  Ga Perlu Lagi Ke Altar Buat Enchant, Cukup Tekan Tombol Ini Saja Sudah Cukup (Selama Ada Aurorite/Aetherite)  NEW
 
 🛠️ Fixed
 • Ajust Auto Sell & Auto Lock Di Patch Terbaru Agar Menghindari Tabrakan Item
@@ -554,39 +558,61 @@ TabLock:CreateButton({
     end
 })
 
--- TAB 5: Teleport ✈️
-local Tab = Window:CreateTab("Teleport NPC ✈️")
+-- 🛠️ TAB: Misc
+local TabMisc = Window:CreateTab("Misc 🛠️")
 
-Tab:CreateButton({
-    Name = "TP Traveling Merchant 👨‍💼🛒",
+-- Services
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local BackpackTwo = LocalPlayer:WaitForChild("BackpackTwo")
+
+-- 🔮 Button Enchant Pan
+TabMisc:CreateButton({
+    Name = "Enchant Pan 🔮",
     Callback = function()
-        local Players = game:GetService("Players")
-        local LocalPlayer = Players.LocalPlayer
-        local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-
-        local targetName = "Traveling Merchant" -- pakai Model.Name
-
-        local found = false
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("Model") and obj.Name == targetName then
-                local hrp = obj:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    Character:MoveTo(hrp.Position + Vector3.new(0, 3, 0))
-                    Rayfield:Notify({
-                        Title = "Teleport Sukses ✅",
-                        Content = "Berhasil Teleport Ke Traveling Merchant 👨‍💼🛒",
-                        Duration = 4,
-                    })
-                    found = true
-                    break
-                end
-            end
-        end
-
-        if not found then
+        local rerollItem = BackpackTwo:FindFirstChild("Aetherite") or BackpackTwo:FindFirstChild("Aurorite")
+        if rerollItem then
+            -- Notifikasi awal
             Rayfield:Notify({
-                Title = "Teleport Gagal ❌",
-                Content = "Traveling Merchant Belum Spawn BLOKK 🗿🖕🏻",
+                Title = "Proses Enchant ✨",
+                Content = "Sedang mencoba enchant pan...",
+                Duration = 2.5,
+            })
+
+            -- Delay 2.5 detik sebelum enchant
+            wait(2.5)
+            
+            -- Invoke enchant
+            RS.Remotes.Crafting.Enchant:InvokeServer(rerollItem)
+
+            -- Notifikasi selesai
+            Rayfield:Notify({
+                Title = "Enchant Berhasil ✅",
+                Content = "Item berhasil di-enchant!",
+                Duration = 2,
+            })
+        else
+            Rayfield:Notify({
+                Title = "Gagal ❌",
+                Content = "Aetherite/Aurorite-nya Mana Blokk🗿",
+                Duration = 3,
+            })
+        end
+    end,
+})
+
+-- 👨‍💼 Button TP Merchant
+TabMisc:CreateButton({
+    Name = "TP Traveling Merchant 🛒",
+    Callback = function()
+        local merchant = workspace:FindFirstChild("Traveling Merchant", true)
+        if merchant and merchant:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character:PivotTo(merchant.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0))
+        else
+            Rayfield:Notify({
+                Title = "Merchant Tidak Ada ❌",
+                Content = "Traveling Merchant belum spawn 🗿",
                 Duration = 4,
             })
         end
