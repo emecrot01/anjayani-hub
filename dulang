@@ -43,6 +43,7 @@ TabHome:CreateParagraph({
 
 🛠️ Fixed
 • Ajust Auto Sell & Auto Lock Di Patch Terbaru Agar Menghindari Tabrakan Item
+• Mempersingkay Delay Saat Melakukan Shake Di Air
 
     ]]
 })
@@ -166,11 +167,12 @@ local function digUntilFull()
     VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
 end
 
+-- 🔥 EDITED: Shake lebih cepat
 local function shakeUntilDone()
     while autoFarm and panIsActive() do
         local _,_,shake=getRemotes(getTool())
         if shake then callRemote(shake) end
-        randDelay(0.2,0.35) -- shake
+        randDelay(0.05,0.1) -- shake cepat
     end
 end
 
@@ -255,7 +257,7 @@ TabFarm:CreateToggle({
                     if panIsActive() then
                         local _,_,shake=getRemotes(tool)
                         if shake then callRemote(shake) end
-                        randDelay(0.2,0.35) -- shake
+                        randDelay(0.05,0.1) -- shake cepat
                     elseif fill>=cap then
                         if os.clock()-lastPan>0.4 then
                             local _,pan=getRemotes(tool)
