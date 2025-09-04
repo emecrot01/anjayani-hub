@@ -18,10 +18,10 @@ local Window = Rayfield:CreateWindow({
  
 -- TAB 1: Home 🏠
 local TabHome = Window:CreateTab("Home 🏠")
-TabHome:CreateLabel("Prospecting! 💎 v1.5")
+TabHome:CreateLabel("Prospecting! 💎 v1.6")
 TabHome:CreateSection("Changelog")
 TabHome:CreateParagraph({
-    Title = "Prospecting! 💎 v1.5",
+    Title = "Prospecting! 💎 v1.6",
     Content = [[
 🎉 Fitur Yang Tersedia:
 • Auto Farm ⛏️
@@ -42,8 +42,7 @@ TabHome:CreateParagraph({
   Ga Perlu Lagi Ke Altar Buat Enchant, Cukup Tekan Tombol Ini Saja Sudah Cukup (Selama Ada Aurorite/Aetherite)  NEW
 
 🛠️ Fixed
-• Ajust Auto Sell & Auto Lock Di Patch Terbaru Agar Menghindari Tabrakan Item
-• Mempersingkay Delay Saat Melakukan Shake Di Air
+• Shake Sambil Berjalan (Saat Melakukan Shake, Karakter Akan Kembali Ke Area Penggalian Dan Melakukan Shake Disana)
 
     ]]
 })
@@ -167,12 +166,12 @@ local function digUntilFull()
     VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
 end
 
--- 🔥 EDITED: Shake lebih cepat
-local function shakeUntilDone()
+-- 🔥 Shake lebih cepat
+local function shakeLoop()
     while autoFarm and panIsActive() do
         local _,_,shake=getRemotes(getTool())
         if shake then callRemote(shake) end
-        randDelay(0.04,0.07) -- shake cepat
+        randDelay(0.04,0.07)
     end
 end
 
@@ -203,6 +202,7 @@ TabFarm:CreateDropdown({
     end
 })
 
+-- 🔥 Auto Farm dengan logika 1–5
 TabFarm:CreateToggle({
     Name="Auto Farm",
     CurrentValue=false,
@@ -213,6 +213,7 @@ TabFarm:CreateToggle({
             return
         end
         notify("Auto Farm","Started ✅")
+
         task.spawn(function()
             while autoFarm do
                 if not savedSandCF or not savedWaterCF then
@@ -221,23 +222,40 @@ TabFarm:CreateToggle({
                     local tool, cap=getTool(), getCapacity()
                     local fill=getFill(tool)
                     if tool and cap and fill then
+                        -- 1. Gali di Sand
                         if fill<cap then
                             moveTo(savedSandCF)
                             digUntilFull()
+                        -- 2. Trigger Pan di Water
                         elseif fill>=cap then
                             moveTo(savedWaterCF)
                             if ensurePanStarted(getTool(),15,0.08) then
-                                shakeUntilDone()
+                                -- 3. Shake sambil balik ke Sand
+                                local shaking=true
+                                task.spawn(function()
+                                    shakeLoop()
+                                    shaking=false
+                                end)
+
+                                moveTo(savedSandCF)
+
+                                -- 4. Kalau Shake masih jalan, tunggu selesai
+                                while autoFarm and panIsActive() do
+                                    local _,_,shake=getRemotes(getTool())
+                                    if shake then callRemote(shake) end
+                                    randDelay(0.04,0.07)
+                                end
                             end
                         end
                     end
                 end
-                randDelay(0.05,0.15) -- antar cycle
+                randDelay(0.05,0.15)
             end
         end)
     end
 })
 
+-- Helper toggle tetap sama
 TabFarm:CreateToggle({
     Name="Auto Collect + Shake ⛏️💧",
     CurrentValue=false,
@@ -257,18 +275,18 @@ TabFarm:CreateToggle({
                     if panIsActive() then
                         local _,_,shake=getRemotes(tool)
                         if shake then callRemote(shake) end
-                        randDelay(0.04,0.07) -- shake cepat
+                        randDelay(0.04,0.07)
                     elseif fill>=cap then
                         if os.clock()-lastPan>0.4 then
                             local _,pan=getRemotes(tool)
                             if pan then callRemote(pan) end
                             lastPan=os.clock()
                         end
-                        randDelay(0.1,0.2) -- pan
+                        randDelay(0.1,0.2)
                     else
                         local collect=select(1,getRemotes(tool))
                         if collect then callRemote(collect,1) end
-                        randDelay(0.08,0.2) -- collect
+                        randDelay(0.08,0.2)
                     end
                 else
                     task.wait(0.2)
