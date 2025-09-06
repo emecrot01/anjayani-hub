@@ -18,10 +18,10 @@ local Window = Rayfield:CreateWindow({
  
 -- TAB 1: Home 🏠
 local TabHome = Window:CreateTab("Home 🏠")
-TabHome:CreateLabel("Prospecting! 💎 v1.7")
+TabHome:CreateLabel("Prospecting! 💎 v1.6.2")
 TabHome:CreateSection("Changelog")
 TabHome:CreateParagraph({
-    Title = "Prospecting! 💎 v1.7",
+    Title = "Prospecting! 💎 v1.6.2",
     Content = [[
 🎉 Fitur Yang Tersedia:
 • Auto Farm ⛏️
@@ -40,8 +40,8 @@ TabHome:CreateParagraph({
   (Hany Bisa TP Ke Merchant Jika Berada Di Pulau Yang Sama)  NEW
 • Enchant Anywhere 
   Ga Perlu Lagi Ke Altar Buat Enchant, Cukup Tekan Tombol Ini Saja Sudah Cukup (Selama Ada Aurorite/Aetherite)
-• Reforging Anywhere 
-  Ga Perlu Nanya Bapack Bapack NPC Lagi (Wasting Time Cik🗿)
+• Reforging saja 
+  Ga Perlu Nanya Bapack Bapack Alomani Itu lagi🗿
 
 🛠️ Fixed
 • Shake Sambil Berjalan (Saat Melakukan Shake, Karakter Akan Kembali Ke Area Penggalian Dan Melakukan Shake Disana)
