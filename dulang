@@ -646,8 +646,49 @@ TabMisc:CreateButton({
     Name = "Reforging Anywhere 🔧",
     Callback = function()
         local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-        if not tool then return end
+        if not tool then
+            wait(0.1)
+            Rayfield:Notify({
+                Title = "No Tool Found",
+                Content = "Harap pegang item dulu sebelum reforge.",
+                Duration = 1
+            })
+            return
+        end
 
-        pcall(function()
-            RS.Remotes.Crafting.GetReforgeCost:InvokeServer(tool)  -- Masih dipanggil tapi tanpa notif
-            RS.Remotes.Crafting.Refor
+        local success, err = pcall(function()
+            -- Ambil biaya reforge
+            local cost = RS.Remotes.Crafting.GetReforgeCost:InvokeServer(tool)
+
+            -- Delay sebelum notif biaya
+            wait(0.1)
+            Rayfield:Notify({
+                Title = "Reforge Cost",
+                Content = "Biaya reforge item ini: " .. tostring(cost),
+                Duration = 1
+            })
+
+            -- Reforge item
+            local result = RS.Remotes.Crafting.ReforgeEquipment:InvokeServer(tool)
+
+            -- Delay sebelum notif hasil
+            wait(0.1)
+            return result
+        end)
+
+        wait(0.1)
+        if success then
+            Rayfield:Notify({
+                Title = "Reforge Success!",
+                Content = "Item berhasil di-reforge ⚡",
+                Duration = 1
+            })
+        else
+            Rayfield:Notify({
+                Title = "Reforge Failed",
+                Content = "Terjadi error: " .. tostring(err),
+                Duration = 1
+            })
+        end
+    end
+})
