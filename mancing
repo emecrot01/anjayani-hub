@@ -145,7 +145,7 @@ local function fish()
     task.wait(1)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
-        task.wait(0.1)
+        task.wait(0.01)
 
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
         task.wait(1 + math.random() * 0.2)
