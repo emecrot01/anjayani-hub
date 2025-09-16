@@ -18,10 +18,10 @@ local Window = Rayfield:CreateWindow({
 
 -- ====== TAB 1: Home 🏠 ======
 local TabHome = Window:CreateTab("🏠 Home")
-TabHome:CreateLabel("Fish It🐟 v2")
+TabHome:CreateLabel("Fish It🐟 v1")
 TabHome:CreateSection("📜 Changelog")
 TabHome:CreateParagraph({
-    Title = "Fish It🐟 v2",
+    Title = "Fish It🐟 v1",
     Content = [[
 📢 Fitur Yang Tersedia:
 - Auto Fishing 🎣
@@ -45,55 +45,80 @@ TabHome:CreateParagraph({
     Content = "EmeCRT"
 })
 
--- ====== TAB 2: Auto Fishing 🎣 ======
+-- ===== TAB 2: Auto Fishing 🎣 =====
 local TabFishing = Window:CreateTab("🎣 Auto Fishing")
 local Net = game:GetService("ReplicatedStorage").Packages["_Index"]["sleitnick_net@0.2.0"].net
 
--- 📌 Set Fishing Area
-local SavedFishingPos = nil
-TabFishing:CreateButton({
-    Name = "Set Fishing Area 📌",
-    Callback = function()
-        SavedFishingPos = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+-- 📌 List lokasi grinding / fishing
+local grindLocations = {
+    {Name = "Enchant Stone Farm🔮", CFrame = CFrame.new(-2108.29, 6.27, 3726.07)},
+    {Name = "Money Farm 💰", CFrame = CFrame.new(-648.63, 45.75, 170.47)},
+    {Name = "Kraken Farm 🐙", CFrame = CFrame.new(-3739.10, -135.07, -1010.39)},
+}
+
+local selectedTP = nil
+
+-- Section: Specific TP Area
+TabFishing:CreateSection("Specific TP Area 🗺️")
+
+TabFishing:CreateDropdown({
+    Name = "Select TP Area 🧭",
+    Options = (function()
+        local names = {}
+        for _, loc in ipairs(grindLocations) do
+            table.insert(names, loc.Name)
+        end
+        return names
+    end)(),
+    CurrentOption = {},
+    Callback = function(Value)
+        local selectedName = Value[1]  -- FIX: Value adalah table
+        for _, loc in ipairs(grindLocations) do
+            if loc.Name == selectedName then
+                selectedTP = loc
+                break
+            end
+        end
         Rayfield:Notify({
-            Title = "Fishing Area Saved 📌",
-            Content = "Posisi mancing berhasil disimpan!",
-            Duration = 1
+            Title = "Area Selected 🧭",
+            Content = "Kamu pilih: " .. selectedName,
+            Duration = 2
         })
     end
 })
+
 TabFishing:CreateButton({
-    Name = "TP To Fishing Area ⚡️",
+    Name = "TP To Selected Area ⚡️",
     Callback = function()
-        if SavedFishingPos then
-            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = SavedFishingPos
+        if selectedTP then
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = selectedTP.CFrame
             Rayfield:Notify({
                 Title = "Teleported ⚡️",
-                Content = "Berhasil teleport ke area mancing.",
-                Duration = 1
+                Content = "Berhasil teleport ke " .. selectedTP.Name,
+                Duration = 2
             })
         else
             Rayfield:Notify({
                 Title = "Gagal ❌",
-                Content = "Belum ada area mancing yang diset!",
-                Duration = 1
+                Content = "Kamu belum memilih area!",
+                Duration = 2
             })
         end
     end
 })
 
--- ====== AUTO FISHING + COUNTER ======
+-- Section: Automatic Fishing
+TabFishing:CreateSection("Automatic Fishing 🎣")
+
 local running = false
 local currentFishCount = 0
-
--- Remote SellAll
 local SellAllRemote = Net["RF/SellAllItems"]
 
--- Auto Sell config
+-- Auto Sell Config
 local autoSellActive = false
 local targetFishCount = 0
 
--- Auto Sell Function (fix anti-stuck)
+-- Auto Sell Function
 local function autoSellCheck()
     if autoSellActive and SellAllRemote and targetFishCount > 0 and currentFishCount >= targetFishCount then
         task.spawn(function()
@@ -101,13 +126,13 @@ local function autoSellCheck()
                 SellAllRemote:InvokeServer()
             end)
             if ok then
-                task.wait(0.3) -- safe delay biar server sempet proses
+                task.wait(0.3)
                 Rayfield:Notify({
                     Title = "Auto Sell 💰",
                     Content = ("Sold %d fishes ✅"):format(currentFishCount),
-                    Duration = 1
+                    Duration = 2
                 })
-                currentFishCount = 0 -- reset setelah sell
+                currentFishCount = 0
             else
                 warn("[Fish It] SellAll failed:", err)
             end
@@ -115,37 +140,31 @@ local function autoSellCheck()
     end
 end
 
--- Auto Fishing loop (versi stabil ++ anti stuck)
+-- Auto Fishing Loop
 local function fish()
-    task.wait(1) -- startup delay sekali sebelum mulai
+    task.wait(1)
     while running do
-        -- 🎣 lempar joran
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
-        task.wait(0.2) -- delay awal biar aman
+        task.wait(0.1)
 
-        -- 🎮 start minigame
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(1 + math.random() * 0.2) -- delay utama (ikan gigit umpan)
+        task.wait(1 + math.random() * 0.2)
 
-        -- ✅ complete minigame (reel in)
         Net["RE/FishingCompleted"]:FireServer()
-        task.wait(0.3 + math.random() * 0.2) -- delay kedua (reel confirm)
+        task.wait(0.2 + math.random() * 0.1)
 
-        -- 🔁 extra confirm biar anti stuck
         Net["RE/FishingCompleted"]:FireServer()
 
-        -- 🐟 increment counter
         currentFishCount += 1
         print("Ikan 🐟: " .. currentFishCount)
         autoSellCheck()
 
-        -- 🔄 jeda sebelum loop berikutnya (0.5 - 0.6 total siklus)
-        task.wait(0.5 + math.random() * 0.1)
+        task.wait(0.2 + math.random() * 0.1)
     end
 end
 
 TabFishing:CreateToggle({
-    Name = "Auto Fishing 🎣",
+    Name = "Auto Fishing 🐟",
     CurrentValue = false,
     Callback = function(Value)
         running = Value
@@ -154,13 +173,13 @@ TabFishing:CreateToggle({
             Rayfield:Notify({
                 Title = "Auto Fishing 🎣",
                 Content = "Dimulai...",
-                Duration = 1
+                Duration = 2
             })
         else
             Rayfield:Notify({
                 Title = "Auto Fishing 🎣",
                 Content = "Dihentikan!",
-                Duration = 1
+                Duration = 2
             })
         end
     end
@@ -171,8 +190,8 @@ TabFishing:CreateSection("📚 Tutorial 📚")
 TabFishing:CreateParagraph({
     Title = "By EmeCRT",
     Content = [[
-• Fitur TP Tidak Masalah Jika Tidak Di Gunakan (Masih Tahap Pengembangan)
-• Aktifkan Auto Fishing 🎣
+• TP Farm Area (Khusus TP Saja Ke Area Area Grind)
+• Auto Fishing Biasa 🐟 (Default) Tidak Harus Pake Fitur TP
     ]]
 })
 
