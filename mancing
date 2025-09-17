@@ -72,7 +72,7 @@ TabFishing:CreateDropdown({
     end)(),
     CurrentOption = {},
     Callback = function(Value)
-        local selectedName = Value[1]  -- FIX: Value adalah table
+        local selectedName = Value[1]
         for _, loc in ipairs(grindLocations) do
             if loc.Name == selectedName then
                 selectedTP = loc
@@ -99,11 +99,9 @@ TabFishing:CreateToggle({
         tpToggleActive = Value
 
         if tpToggleActive and selectedTP then
-            -- Teleport dulu sekali
             local hrp = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
             hrp.CFrame = selectedTP.CFrame
 
-            -- Freeze karakter
             freezeConnection = game:GetService("RunService").Heartbeat:Connect(function()
                 if tpToggleActive and hrp then
                     hrp.CFrame = selectedTP.CFrame
@@ -117,7 +115,6 @@ TabFishing:CreateToggle({
                 Duration = 1
             })
         else
-            -- Lepas freeze
             if freezeConnection then
                 freezeConnection:Disconnect()
                 freezeConnection = nil
@@ -188,23 +185,30 @@ local function fish()
     end
 end
 
+-- 👇 Auto Equip Rod (slot 1) sebelum mulai loop
+local function equipRod()
+    local args = {1}
+    Net["RE/EquipToolFromHotbar"]:FireServer(unpack(args))
+end
+
 TabFishing:CreateToggle({
     Name = "Auto Fishing 🐟",
     CurrentValue = false,
     Callback = function(Value)
         running = Value
         if running then
+            equipRod() -- ✅ auto equip rod slot 1
             task.spawn(fish)
             Rayfield:Notify({
                 Title = "Auto Fishing 🎣",
                 Content = "Dimulai...",
-                Duration = 2
+                Duration = 1
             })
         else
             Rayfield:Notify({
                 Title = "Auto Fishing 🎣",
                 Content = "Dihentikan!",
-                Duration = 2
+                Duration = 1
             })
         end
     end
