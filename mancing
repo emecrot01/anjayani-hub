@@ -18,25 +18,25 @@ local Window = Rayfield:CreateWindow({
 
 -- ====== TAB 1: Home 🏠 ======
 local TabHome = Window:CreateTab("🏠 Home")
-TabHome:CreateLabel("Fish It🐟 v1")
+TabHome:CreateLabel("Fish It🐟 v2")
 TabHome:CreateSection("📜 Changelog")
 TabHome:CreateParagraph({
-    Title = "Fish It🐟 v1",
+    Title = "Fish It🐟 v2",
     Content = [[
 📢 Fitur Yang Tersedia:
 - Auto Fishing 🎣
+- Auto Freeze Area Farm (🐙,💰,🔮)
 - Auto Sell 💰
 - Teleport 🏝️
 - Weather Shop 🏪🔆
 - Utility ⚙️
 
 🔔 Fitur Baru
-- Menambahkan Map Baru
-• Esoteric Depth 🌌
-• Weather Machine Island 🕰️
+- Freeze System Di Beberapa Area Grinding
+- Auto Equip Rod Saat Auto Fishing Dinyalakan 
 
 🔀 Changed
-New UI For Teleport & Shop (Dropdown System)
+- Ada Beberapa Pembaruan Untuk Fitur Fitur Script Dan Memperbaiki Beberapa BUG
     ]]
 })
 TabHome:CreateSection("👥 Credits")
@@ -51,9 +51,9 @@ local Net = game:GetService("ReplicatedStorage").Packages["_Index"]["sleitnick_n
 
 -- 📌 List lokasi grinding / fishing
 local grindLocations = {
-    {Name = "Enchant Stone Farm🔮", CFrame = CFrame.new(-2108.29, 6.27, 3726.07)},
-    {Name = "Money Farm 💰", CFrame = CFrame.new(-648.63, 45.75, 170.47)},
-    {Name = "Kraken Farm 🐙", CFrame = CFrame.new(-3739.10, -135.07, -1010.39)},
+    {Name = "Enchant Stone Farm🔮", CFrame = CFrame.new(-2107.84, 6.27, 3692.49)},
+    {Name = "Money Farm 💰", CFrame = CFrame.new(-647.76, 30.01, 118.15)},
+    {Name = "Kraken Farm 🐙", CFrame = CFrame.new(-3730.24, -135.07, -886.17)},
 }
 
 local selectedTP = nil
@@ -87,21 +87,46 @@ TabFishing:CreateDropdown({
     end
 })
 
-TabFishing:CreateButton({
-    Name = "TP To Selected Area ⚡️",
-    Callback = function()
-        if selectedTP then
-            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = selectedTP.CFrame
+-- Specific TP Area Toggle
+local freezeConnection
+local tpToggleActive = false
+
+TabFishing:CreateToggle({
+    Name = "Freeze TP to Selected Area ⚡️",
+    CurrentValue = false,
+    Flag = "FreezeTP",
+    Callback = function(Value)
+        tpToggleActive = Value
+
+        if tpToggleActive and selectedTP then
+            -- Teleport dulu sekali
+            local hrp = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+            hrp.CFrame = selectedTP.CFrame
+
+            -- Freeze karakter
+            freezeConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                if tpToggleActive and hrp then
+                    hrp.CFrame = selectedTP.CFrame
+                    hrp.Velocity = Vector3.new(0,0,0)
+                end
+            end)
+
             Rayfield:Notify({
-                Title = "Teleported ⚡️",
-                Content = "Berhasil teleport ke " .. selectedTP.Name,
-                Duration = 2
+                Title = "Freeze TP ✅",
+                Content = "Kamu dibekukan di " .. selectedTP.Name,
+                Duration = 1
             })
         else
+            -- Lepas freeze
+            if freezeConnection then
+                freezeConnection:Disconnect()
+                freezeConnection = nil
+            end
+
             Rayfield:Notify({
-                Title = "Gagal ❌",
-                Content = "Kamu belum memilih area!",
-                Duration = 2
+                Title = "Freeze TP ❌",
+                Content = "Freeze dimatikan, karakter bisa gerak lagi",
+                Duration = 1
             })
         end
     end
@@ -482,7 +507,7 @@ LocalPlayer.CharacterAdded:Connect(setupCharacter)
 -- ===== Walk Speed =====
 walkSpeedSlider = TabUtility:CreateSlider({
     Name = "Walk Speed 👟⚡️",
-    Range = {0, 100},
+    Range = {0, 500}, -- dinaikin max 500
     Increment = 1,
     Suffix = "Speed",
     CurrentValue = defaultWalkSpeed,
@@ -493,21 +518,11 @@ walkSpeedSlider = TabUtility:CreateSlider({
         end
     end,
 })
- 
-TabUtility:CreateButton({
-    Name = "Reset Walk Speed 🔄",
-    Callback = function()
-        if Humanoid then
-            Humanoid.WalkSpeed = defaultWalkSpeed
-            walkSpeedSlider:Set(defaultWalkSpeed)
-        end
-    end,
-})
- 
+
 -- ===== Jump Boost =====
 jumpPowerSlider = TabUtility:CreateSlider({
     Name = "Jump Boost 🤸‍♂️🚀",
-    Range = {0, 200},
+    Range = {0, 500}, -- dinaikin max 500
     Increment = 5,
     Suffix = "Power",
     CurrentValue = defaultJumpPower,
@@ -518,17 +533,7 @@ jumpPowerSlider = TabUtility:CreateSlider({
         end
     end,
 })
- 
-TabUtility:CreateButton({
-    Name = "Reset Jump Boost 🔄",
-    Callback = function()
-        if Humanoid then
-            Humanoid.JumpPower = defaultJumpPower
-            jumpPowerSlider:Set(defaultJumpPower)
-        end
-    end,
-})
- 
+
 -- ===== Infinite Jump =====
 TabUtility:CreateToggle({
     Name = "Infinity Jump 🤸‍♂️♾️",
