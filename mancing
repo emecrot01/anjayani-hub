@@ -383,7 +383,7 @@ local TabShop = Window:CreateTab("Shop 🏪")
 local SectionWeather = TabShop:CreateSection("Weather Shop 🔆")
  
 -- ====== HELPER BELI CUACA ======
-local function buyWeather(weatherName, displayName)
+local function buyWeather(weatherName, displayName, silent)
     local ok, result = pcall(function()
         return game:GetService("ReplicatedStorage")
             :WaitForChild("Packages")
@@ -395,17 +395,21 @@ local function buyWeather(weatherName, displayName)
     end)
  
     if ok and result then
+        -- sukses: selalu kasih notif
         Rayfield:Notify({
             Title = "Buying Successfully ✅",
             Content = "Thankyou Sultan 👑💰",
             Duration = 1
         })
     else
-        Rayfield:Notify({
-            Title = "Buying Fail ❌",
-            Content = "Cek Udah Beli Atau Duit Kurang, Kalau Kurang. MISKIN GAUSH BELAGU🗿🖕🏻",
-            Duration = 1
-        })
+        -- gagal: notif muncul hanya kalau bukan mode silent
+        if not silent then
+            Rayfield:Notify({
+                Title = "Buying Fail ❌",
+                Content = "Cek Udah Beli Atau Duit Kurang, Kalau Kurang. MISKIN GAUSH BELAGU🗿🖕🏻",
+                Duration = 1
+            })
+        end
     end
 end
  
@@ -444,7 +448,7 @@ pcall(function() DropdownWeather:Set(weatherNames[1]) end)
  
 -- ====== BUTTON: BUY WEATHER 💲 ======
 TabShop:CreateButton({
-    Name = "Buy Weather 💲",
+    Name = "Buy Weather 💰⛅",
     Callback = function()
         if not selectedWeather then
             Rayfield:Notify({
@@ -456,10 +460,41 @@ TabShop:CreateButton({
         end
         for _, w in ipairs(weathers) do
             if w.Name == selectedWeather then
-                buyWeather(w.Id, w.Display)
+                buyWeather(w.Id, w.Display, false) -- manual → notif tetap ada
                 break
             end
         end
+    end,
+})
+ 
+-- ====== TOGGLE: AUTO BUY WEATHER (30s) ======
+local autoWeather = false
+local cooldown = 30 -- detik
+ 
+-- Loop Auto Buy Weather (Wind, Cloudy, Storm)
+task.spawn(function()
+    while task.wait(cooldown) do
+        if autoWeather then
+            for _, w in ipairs(weathers) do
+                if w.Id == "Wind" or w.Id == "Cloudy" or w.Id == "Storm" then
+                    buyWeather(w.Id, w.Display, true) -- silent = true → gak spam notif gagal
+                end
+            end
+        end
+    end
+end)
+ 
+TabShop:CreateToggle({
+    Name = "Auto Buy Weather (💨/☁️/⛈️)",
+    CurrentValue = false,
+    Flag = "AutoWeather",
+    Callback = function(Value)
+        autoWeather = Value
+        Rayfield:Notify({
+            Title = "Auto Weather",
+            Content = autoWeather and "ON ✅ (30s cooldown)" or "OFF ❌",
+            Duration = 2
+        })
     end,
 })
  
