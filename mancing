@@ -167,7 +167,7 @@ local function fish()
     task.wait(1)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
-        task.wait(0.05)
+        task.wait(0.02)
 
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
         task.wait(1 + math.random() * 0.2)
@@ -282,7 +282,7 @@ TabSell:CreateParagraph({
 
 -- ====== TAB 4: Teleport ✈️ ======
 local TabTP = Window:CreateTab("✈️ Teleport")
-
+ 
 -- Data lokasi teleport (jangan diubah urutannya)
 local teleportLocations = {
     { Name = "Stingray Shores 🐠", Pos = Vector3.new(19.035, 15, 2889.627) },
@@ -297,11 +297,12 @@ local teleportLocations = {
     { Name = "Lost Isle (Sisyphus Statue) 🔱", Pos = Vector3.new(-3693.872, -132, -1042.617) },
     { Name = "Lost Isle (Treasure Hall) 💎", Pos = Vector3.new(-3600.823, -313, -1405.601) },
     { Name = "Lost Isle (Treasure Room) 🏴‍☠️", Pos = Vector3.new(-3598.215, -280, -1640.74) },
+    { Name = "Snowy Island ❄️", Pos = Vector3.new(1688.66, 8, 3308.29) },
 }
-
+ 
 -- Lokasi yang dipilih
 local selectedLocation = nil
-
+ 
 -- Dropdown pilih lokasi
 TabTP:CreateDropdown({
     Name = "Pilih Lokasi 📍",
@@ -328,7 +329,7 @@ TabTP:CreateDropdown({
         })
     end
 })
-
+ 
 -- Tombol Teleport
 TabTP:CreateButton({
     Name = "Teleport 🚀",
@@ -341,7 +342,7 @@ TabTP:CreateButton({
             })
             return
         end
-
+ 
         local pos = nil
         for _, loc in ipairs(teleportLocations) do
             if loc.Name == selectedLocation then
@@ -349,7 +350,7 @@ TabTP:CreateButton({
                 break
             end
         end
-
+ 
         if pos then
             game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(pos)
             Rayfield:Notify({
