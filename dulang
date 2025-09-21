@@ -5,7 +5,7 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 Rayfield:Notify({
     Title = "Sabar Bngst🗿🖕🏻",
     Content = "Lagi Loading",
-    Duration = 4,
+    Duration = 3,
 })
  
 -- Window
@@ -18,10 +18,10 @@ local Window = Rayfield:CreateWindow({
  
 -- TAB 1: Home 🏠
 local TabHome = Window:CreateTab("Home 🏠")
-TabHome:CreateLabel("Prospecting! 💎 v1.6.2")
+TabHome:CreateLabel("Prospecting! 💎 v1.6.4")
 TabHome:CreateSection("Changelog")
 TabHome:CreateParagraph({
-    Title = "Prospecting! 💎 v1.6.2",
+    Title = "Prospecting! 💎 v1.6.4",
     Content = [[
 🎉 Fitur Yang Tersedia:
 • Auto Farm ⛏️
@@ -37,11 +37,13 @@ TabHome:CreateParagraph({
 • Auto Favorite 🌟
   Sistem Sama Seperti Sell (Toggle) + Unlock All 🔓
 • TP Traveling Merchant 
-  (Hany Bisa TP Ke Merchant Jika Berada Di Pulau Yang Sama)  NEW
+  (Hany Bisa TP Ke Merchant Jika Berada Di Pulau Yang Sama)
 • Enchant Anywhere 
   Ga Perlu Lagi Ke Altar Buat Enchant, Cukup Tekan Tombol Ini Saja Sudah Cukup (Selama Ada Aurorite/Aetherite)
 • Reforging saja 
   Ga Perlu Nanya Bapack Bapack Alomani Itu lagi🗿
+• Walkspeed & Jumpboost NEW
+  Kecepatan Memulung Geode🗿
 
 🛠️ Fixed
 • Shake Sambil Berjalan (Saat Melakukan Shake, Karakter Akan Kembali Ke Area Penggalian Dan Melakukan Shake Disana)
@@ -589,26 +591,30 @@ local RS = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local BackpackTwo = LocalPlayer:WaitForChild("BackpackTwo")
 
+-- Humanoid detect + simpan default game
+local humanoid = LocalPlayer.Character and LocalPlayer.Character:WaitForChild("Humanoid")
+local DefaultWalkSpeed = humanoid and humanoid.WalkSpeed or 16
+local DefaultJumpPower = humanoid and humanoid.JumpPower or 50
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    humanoid = char:WaitForChild("Humanoid")
+    DefaultWalkSpeed = humanoid.WalkSpeed
+    DefaultJumpPower = humanoid.JumpPower
+end)
+
 -- 🔮 Button Enchant Pan
 TabMisc:CreateButton({
     Name = "Enchant Pan 🔮",
     Callback = function()
         local rerollItem = BackpackTwo:FindFirstChild("Aetherite") or BackpackTwo:FindFirstChild("Aurorite")
         if rerollItem then
-            -- Notifikasi awal
             Rayfield:Notify({
                 Title = "Proses Enchant ✨",
                 Content = "Sedang mencoba enchant pan...",
                 Duration = 2.5,
             })
-
-            -- Delay 2.5 detik sebelum enchant
-            wait(2.5)
-            
-            -- Invoke enchant
+            task.wait(2.5)
             RS.Remotes.Crafting.Enchant:InvokeServer(rerollItem)
-
-            -- Notifikasi selesai
             Rayfield:Notify({
                 Title = "Enchant Berhasil ✅",
                 Content = "Item berhasil di-enchant!",
@@ -641,7 +647,7 @@ TabMisc:CreateButton({
     end,
 })
 
--- 🛠️ TAB: Reforge Anywhere
+-- 🔧 Button Reforge Anywhere
 TabMisc:CreateButton({
     Name = "Reforge Anywhere 🔧",
     Callback = function()
@@ -654,13 +660,11 @@ TabMisc:CreateButton({
             })
             return
         end
-
-        -- Coba ambil biaya reforge
+ 
         local cost
         local successCost, errCost = pcall(function()
             cost = RS.Remotes.Crafting.GetReforgeCost:InvokeServer(tool)
         end)
-
         if not successCost then
             Rayfield:Notify({
                 Title = "Error",
@@ -669,22 +673,19 @@ TabMisc:CreateButton({
             })
             return
         end
-
-        -- Notif biaya
+ 
         Rayfield:Notify({
             Title = "Reforge Cost",
             Content = "Biaya reforge item ini: " .. tostring(cost),
             Duration = 1
         })
-
-        task.wait(0.25) -- kasih jeda singkat
-
-        -- Coba lakukan reforge
+ 
+        task.wait(0.25)
         local result
         local success, err = pcall(function()
             result = RS.Remotes.Crafting.ReforgeEquipment:InvokeServer(tool)
         end)
-
+ 
         if success and result then
             Rayfield:Notify({
                 Title = "Reforge Success!",
@@ -699,4 +700,72 @@ TabMisc:CreateButton({
             })
         end
     end
+})
+ 
+-- ⚡ WalkSpeed Input
+TabMisc:CreateInput({
+    Name = "Set WalkSpeed ⚡",
+    PlaceholderText = "Masukkan angka (max 100)",
+    RemoveTextAfterFocusLost = true,
+    Callback = function(value)
+        local num = tonumber(value)
+        if humanoid and num then
+            if num > 100 then num = 100 end
+            if num < 0 then num = 0 end
+            humanoid.WalkSpeed = num
+            Rayfield:Notify({
+                Title = "WalkSpeed Updated ✅",
+                Content = "WalkSpeed diatur ke " .. num,
+                Duration = 2,
+            })
+        end
+    end,
+})
+ 
+TabMisc:CreateButton({
+    Name = "Reset WalkSpeed 🔄",
+    Callback = function()
+        if humanoid then
+            humanoid.WalkSpeed = DefaultWalkSpeed
+            Rayfield:Notify({
+                Title = "Reset WalkSpeed ✅",
+                Content = "WalkSpeed kembali ke bawaan game (" .. DefaultWalkSpeed .. ").",
+                Duration = 2,
+            })
+        end
+    end,
+})
+ 
+-- 🦘 JumpPower Input
+TabMisc:CreateInput({
+    Name = "Set JumpPower 🦘",
+    PlaceholderText = "Masukkan angka (max 100)",
+    RemoveTextAfterFocusLost = true,
+    Callback = function(value)
+        local num = tonumber(value)
+        if humanoid and num then
+            if num > 100 then num = 100 end
+            if num < 0 then num = 0 end
+            humanoid.JumpPower = num
+            Rayfield:Notify({
+                Title = "JumpPower Updated ✅",
+                Content = "JumpPower diatur ke " .. num,
+                Duration = 2,
+            })
+        end
+    end,
+})
+ 
+TabMisc:CreateButton({
+    Name = "Reset JumpPower 🔄",
+    Callback = function()
+        if humanoid then
+            humanoid.JumpPower = DefaultJumpPower
+            Rayfield:Notify({
+                Title = "Reset JumpPower ✅",
+                Content = "JumpPower kembali ke bawaan game (" .. DefaultJumpPower .. ").",
+                Duration = 2,
+            })
+        end
+    end,
 })
