@@ -45,102 +45,68 @@ TabHome:CreateParagraph({
     Content = "EmeCRT"
 })
 
--- ===== TAB 2: Auto Fishing 🎣 =====
+-- ====== TAB 2: Auto Fishing 🎣 ======
 local TabFishing = Window:CreateTab("🎣 Auto Fishing")
 local Net = game:GetService("ReplicatedStorage").Packages["_Index"]["sleitnick_net@0.2.0"].net
+local LocalPlayer = game:GetService("Players").LocalPlayer
 
--- 📌 List lokasi grinding / fishing
-local grindLocations = {
-    {Name = "Enchant Stone Farm🔮", CFrame = CFrame.new(-2107.84, 6.27, 3692.49)},
-    {Name = "Money Farm 💰", CFrame = CFrame.new(-647.76, 30.01, 118.15)},
-    {Name = "Kraken Farm 🐙", CFrame = CFrame.new(-3730.24, -135.07, -886.17)},
-}
+-- ====== Saved TP 💾⚡ ======
+TabFishing:CreateSection("Saved TP 💾⚡")
+local savedTP = nil
 
-local selectedTP = nil
+TabFishing:CreateButton({
+    Name = "Save Koordinat 📌",
+    Callback = function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
 
--- Section: Specific TP Area
-TabFishing:CreateSection("Specific TP Area 🗺️")
-
-TabFishing:CreateDropdown({
-    Name = "Select TP Area 🧭",
-    Options = (function()
-        local names = {}
-        for _, loc in ipairs(grindLocations) do
-            table.insert(names, loc.Name)
-        end
-        return names
-    end)(),
-    CurrentOption = {},
-    Callback = function(Value)
-        local selectedName = Value[1]
-        for _, loc in ipairs(grindLocations) do
-            if loc.Name == selectedName then
-                selectedTP = loc
-                break
-            end
-        end
+        savedTP = hrp.CFrame
         Rayfield:Notify({
-            Title = "Area Selected 🧭",
-            Content = "Kamu pilih: " .. selectedName,
+            Title = "Saved TP ✅",
+            Content = "Koordinat tersimpan!",
             Duration = 2
         })
     end
 })
 
--- Specific TP Area Toggle
-local freezeConnection
-local tpToggleActive = false
-
-TabFishing:CreateToggle({
-    Name = "Freeze TP to Selected Area ⚡️",
-    CurrentValue = false,
-    Flag = "FreezeTP",
-    Callback = function(Value)
-        tpToggleActive = Value
-
-        if tpToggleActive and selectedTP then
-            local hrp = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
-            hrp.CFrame = selectedTP.CFrame
-
-            freezeConnection = game:GetService("RunService").Heartbeat:Connect(function()
-                if tpToggleActive and hrp then
-                    hrp.CFrame = selectedTP.CFrame
-                    hrp.Velocity = Vector3.new(0,0,0)
-                end
-            end)
-
+TabFishing:CreateButton({
+    Name = "TP To Saved Koordinat 🚀",
+    Callback = function()
+        if not savedTP then
             Rayfield:Notify({
-                Title = "Freeze TP ✅",
-                Content = "Kamu dibekukan di " .. selectedTP.Name,
-                Duration = 1
+                Title = "Error ❌",
+                Content = "Belum ada koordinat yang disimpan!",
+                Duration = 2
             })
-        else
-            if freezeConnection then
-                freezeConnection:Disconnect()
-                freezeConnection = nil
-            end
-
-            Rayfield:Notify({
-                Title = "Freeze TP ❌",
-                Content = "Freeze dimatikan, karakter bisa gerak lagi",
-                Duration = 1
-            })
+            return
         end
+
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        hrp.CFrame = savedTP
+        Rayfield:Notify({
+            Title = "Teleported ✅",
+            Content = "Berhasil teleport ke Saved TP!",
+            Duration = 2
+        })
     end
 })
 
--- Section: Automatic Fishing
+-- ====== Automatic Fishing 🎣 ======
 TabFishing:CreateSection("Automatic Fishing 🎣")
 
 local running = false
 local currentFishCount = 0
 local SellAllRemote = Net["RF/SellAllItems"]
 
--- Auto Sell Config
 local autoSellActive = false
 local targetFishCount = 0
 
--- Auto Sell Function
 local function autoSellCheck()
     if autoSellActive and SellAllRemote and targetFishCount > 0 and currentFishCount >= targetFishCount then
         task.spawn(function()
@@ -162,19 +128,15 @@ local function autoSellCheck()
     end
 end
 
--- Auto Fishing Loop
 local function fish()
     task.wait(1)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
         task.wait(0.02)
-
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
         task.wait(1 + math.random() * 0.2)
-
         Net["RE/FishingCompleted"]:FireServer()
         task.wait(0.2 + math.random() * 0.1)
-
         Net["RE/FishingCompleted"]:FireServer()
 
         currentFishCount += 1
@@ -185,7 +147,6 @@ local function fish()
     end
 end
 
--- 👇 Auto Equip Rod (slot 1) sebelum mulai loop
 local function equipRod()
     local args = {1}
     Net["RE/EquipToolFromHotbar"]:FireServer(unpack(args))
@@ -197,7 +158,7 @@ TabFishing:CreateToggle({
     Callback = function(Value)
         running = Value
         if running then
-            equipRod() -- ✅ auto equip rod slot 1
+            equipRod()
             task.spawn(fish)
             Rayfield:Notify({
                 Title = "Auto Fishing 🎣",
@@ -219,7 +180,7 @@ TabFishing:CreateSection("📚 Tutorial 📚")
 TabFishing:CreateParagraph({
     Title = "By EmeCRT",
     Content = [[
-• TP Farm Area (Khusus TP Saja Ke Area Area Grind)
+• TP Area (Khusus TP Yang Di Set Sendiri)
 • Auto Fishing Biasa 🐟 (Default) Tidak Harus Pake Fitur TP
     ]]
 })
@@ -280,10 +241,10 @@ TabSell:CreateParagraph({
     ]]
 })
 
--- ====== TAB 4: Teleport ✈️ ======
+-- ====== TAB: Teleport ✈️ ======
 local TabTP = Window:CreateTab("✈️ Teleport")
- 
--- Data lokasi teleport (jangan diubah urutannya)
+
+-- Data lokasi teleport (Island)
 local teleportLocations = {
     { Name = "Stingray Shores 🐠", Pos = Vector3.new(19.035, 15, 2889.627) },
     { Name = "Kohana Island 🏝️", Pos = Vector3.new(-642.76, 19, 618.787) },
@@ -299,13 +260,27 @@ local teleportLocations = {
     { Name = "Lost Isle (Treasure Room) 🏴‍☠️", Pos = Vector3.new(-3598.215, -280, -1640.74) },
     { Name = "Snowy Island ❄️", Pos = Vector3.new(1688.66, 8, 3308.29) },
 }
- 
--- Lokasi yang dipilih
-local selectedLocation = nil
- 
--- Dropdown pilih lokasi
+
+-- Data lokasi teleport (Grind)
+local grindLocations = {
+    {Name = "Enchant Stone Farm 🔮", CFrame = CFrame.new(-2107.84, 6.27, 3692.49)},
+    {Name = "Money Farm 💰", CFrame = CFrame.new(-647.76, 30.01, 118.15)},
+    {Name = "Kraken Farm 🐙", CFrame = CFrame.new(-3730.24, -135.07, -886.17)},
+    {Name = "Weather Island 🌦️", CFrame = CFrame.new(-1525.81, 8.34, 1775.41)},
+    {Name = "Snowy Lake ❄️🐟", CFrame = CFrame.new(1816.62, 2.30, 3385.12)},
+    {Name = "Ice Hole 🧊🕳", CFrame = CFrame.new(2050.95, 6.55, 3387.14)},
+}
+
+-- Services
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- ===== ISLAND TELEPORT
+local selectedIsland = nil
+TabTP:CreateSection("Island Teleport 🏝️")
+
 TabTP:CreateDropdown({
-    Name = "Pilih Lokasi 📍",
+    Name = "Pilih Pulau 📍",
     Options = (function()
         local names = {}
         for _, loc in ipairs(teleportLocations) do
@@ -313,67 +288,86 @@ TabTP:CreateDropdown({
         end
         return names
     end)(),
-    CurrentOption = nil,
-    MultipleOptions = false,
     Callback = function(Option)
-        -- Rayfield Dropdown kasih table, ambil elemen pertama
-        if type(Option) == "table" then
-            selectedLocation = Option[1]
-        else
-            selectedLocation = Option
-        end
-        Rayfield:Notify({
-            Title = "Lokasi Dipilih 📍",
-            Content = "Lokasi: " .. tostring(selectedLocation),
-            Duration = 1
-        })
+        selectedIsland = type(Option) == "table" and Option[1] or Option
     end
 })
- 
--- Tombol Teleport
+
 TabTP:CreateButton({
     Name = "Teleport 🚀",
     Callback = function()
-        if not selectedLocation then
-            Rayfield:Notify({
-                Title = "Error ❌",
-                Content = "Belum pilih lokasi!",
-                Duration = 1
-            })
-            return
-        end
- 
-        local pos = nil
+        if not selectedIsland then return end
         for _, loc in ipairs(teleportLocations) do
-            if loc.Name == selectedLocation then
-                pos = loc.Pos
-                break
+            if loc.Name == selectedIsland then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(loc.Pos)
             end
-        end
- 
-        if pos then
-            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(pos)
-            Rayfield:Notify({
-                Title = "Teleport ✅",
-                Content = "Berhasil teleport ke " .. selectedLocation,
-                Duration = 1
-            })
-        else
-            Rayfield:Notify({
-                Title = "Gagal ❌",
-                Content = "Lokasi tidak ditemukan!",
-                Duration = 1
-            })
         end
     end
 })
+
+-- ===== GRIND TELEPORT
+local selectedGrind = nil
+local grindActive = false
+TabTP:CreateSection("Grind Teleport ⚒️")
+
+TabTP:CreateDropdown({
+    Name = "Pilih Area Grind 📍",
+    Options = (function()
+        local names = {}
+        for _, loc in ipairs(grindLocations) do
+            table.insert(names, loc.Name)
+        end
+        return names
+    end)(),
+    Callback = function(Option)
+        selectedGrind = type(Option) == "table" and Option[1] or Option
+    end
+})
+
+TabTP:CreateToggle({
+    Name = "Aktifkan Grind Freeze 🔒",
+    CurrentValue = false,
+    Callback = function(Value)
+        grindActive = Value
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        if grindActive and selectedGrind then
+            for _, loc in ipairs(grindLocations) do
+                if loc.Name == selectedGrind then
+                    hrp.CFrame = loc.CFrame
+                    hrp.Anchored = true -- ❄️ benar-benar freeze
+                end
+            end
+        else
+            hrp.Anchored = false
+        end
+    end
+})
+
+-- Respawn handler (tetap freeze kalau reset)
+LocalPlayer.CharacterAdded:Connect(function(char)
+    if grindActive and selectedGrind then
+        task.wait(1)
+        local hrp = char:WaitForChild("HumanoidRootPart")
+        for _, loc in ipairs(grindLocations) do
+            if loc.Name == selectedGrind then
+                hrp.CFrame = loc.CFrame
+                hrp.Anchored = true
+            end
+        end
+    end
+end)
 
 -- Section + Tutorial
 TabTP:CreateSection("📚 Tutorial 📚")
 TabTP:CreateParagraph({
     Title = "By EmeCRT",
     Content = [[
-• Tinggal Pilih Mau TP Ke Pulau Mana (gitu doang masa kaga tau🗿🗿🗿)
+• Tinggal Pilih Mau TP Ke Pulau Mana (Dropdown)
+• Fitur Freeze TP Untuk Grind Di Area Tertentu (Yang Sudah Di Sediakan)
     ]]
 })
 
