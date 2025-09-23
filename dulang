@@ -582,7 +582,7 @@ TabLock:CreateButton({
     end
 })
 
--- 🛠️ TAB: Misc
+-- 🛠️ TAB: Misc 
 local TabMisc = Window:CreateTab("Misc 🛠️")
 
 -- Services
@@ -590,6 +590,8 @@ local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local BackpackTwo = LocalPlayer:WaitForChild("BackpackTwo")
+local VirtualUser = game:GetService("VirtualUser")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Humanoid detect + simpan default game
 local humanoid = LocalPlayer.Character and LocalPlayer.Character:WaitForChild("Humanoid")
@@ -660,7 +662,7 @@ TabMisc:CreateButton({
             })
             return
         end
- 
+
         local cost
         local successCost, errCost = pcall(function()
             cost = RS.Remotes.Crafting.GetReforgeCost:InvokeServer(tool)
@@ -673,19 +675,19 @@ TabMisc:CreateButton({
             })
             return
         end
- 
+
         Rayfield:Notify({
             Title = "Reforge Cost",
             Content = "Biaya reforge item ini: " .. tostring(cost),
             Duration = 1
         })
- 
+
         task.wait(0.25)
         local result
         local success, err = pcall(function()
             result = RS.Remotes.Crafting.ReforgeEquipment:InvokeServer(tool)
         end)
- 
+
         if success and result then
             Rayfield:Notify({
                 Title = "Reforge Success!",
@@ -701,7 +703,7 @@ TabMisc:CreateButton({
         end
     end
 })
- 
+
 -- ⚡ WalkSpeed Input
 TabMisc:CreateInput({
     Name = "Set WalkSpeed ⚡",
@@ -721,7 +723,7 @@ TabMisc:CreateInput({
         end
     end,
 })
- 
+
 TabMisc:CreateButton({
     Name = "Reset WalkSpeed 🔄",
     Callback = function()
@@ -735,7 +737,7 @@ TabMisc:CreateButton({
         end
     end,
 })
- 
+
 -- 🦘 JumpPower Input
 TabMisc:CreateInput({
     Name = "Set JumpPower 🦘",
@@ -755,7 +757,7 @@ TabMisc:CreateInput({
         end
     end,
 })
- 
+
 TabMisc:CreateButton({
     Name = "Reset JumpPower 🔄",
     Callback = function()
@@ -766,6 +768,64 @@ TabMisc:CreateButton({
                 Content = "JumpPower kembali ke bawaan game (" .. DefaultJumpPower .. ").",
                 Duration = 2,
             })
+        end
+    end,
+})
+
+-- ===== Anti AFK =====
+local antiAfkEnabled = true
+local antiAfkLoop
+local antiAfkConnection
+
+local function doRandomAction()
+    local choice = math.random(1,4)
+    if choice == 1 then
+        -- Klik kanan mouse
+        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(0.1)
+        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    elseif choice == 2 then
+        -- Goyang kamera
+        local cam = workspace.CurrentCamera
+        cam.CFrame = cam.CFrame * CFrame.Angles(0, math.rad(math.random(-2,2)), 0)
+    elseif choice == 3 then
+        -- Zoom kamera
+        local cam = workspace.CurrentCamera
+        local originalFOV = cam.FieldOfView
+        cam.FieldOfView = originalFOV + math.random(-4,4)
+        task.wait(0.3)
+        cam.FieldOfView = originalFOV
+    elseif choice == 4 then
+        -- Tekan tombol (Shift / Space)
+        local key = (math.random(1,2) == 1) and "LeftShift" or "Space"
+        VirtualInputManager:SendKeyEvent(true, key, false, game)
+        task.wait(0.1)
+        VirtualInputManager:SendKeyEvent(false, key, false, game)
+    end
+end
+
+TabMisc:CreateToggle({
+    Name = "Anti Turu ⏰",
+    CurrentValue = true, -- default ON
+    Callback = function(Value)
+        antiAfkEnabled = Value
+        if Value then
+            antiAfkConnection = LocalPlayer.Idled:Connect(function() end)
+            antiAfkLoop = task.spawn(function()
+                while antiAfkEnabled do
+                    doRandomAction()
+                    task.wait(math.random(30,60))
+                end
+            end)
+        else
+            if antiAfkLoop then
+                task.cancel(antiAfkLoop)
+                antiAfkLoop = nil
+            end
+            if antiAfkConnection then
+                antiAfkConnection:Disconnect()
+                antiAfkConnection = nil
+            end
         end
     end,
 })
