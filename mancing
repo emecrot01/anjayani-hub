@@ -510,12 +510,15 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser")
+local VirtualInputManager = game:GetService("VirtualInputManager")
  
 -- Variabel global
 local Humanoid
 local defaultWalkSpeed = 20
 local defaultJumpPower = 50
 local infiniteJump = false
+local antiAfkEnabled = true
+local antiAfkLoop
 local antiAfkConnection
  
 -- Fungsi untuk update Humanoid setiap spawn / respawn
@@ -552,7 +555,7 @@ walkSpeedSlider = TabUtility:CreateSlider({
         end
     end,
 })
-
+ 
 -- ===== Jump Boost =====
 jumpPowerSlider = TabUtility:CreateSlider({
     Name = "Jump Boost 🤸‍♂️🚀",
@@ -567,7 +570,7 @@ jumpPowerSlider = TabUtility:CreateSlider({
         end
     end,
 })
-
+ 
 -- ===== Infinite Jump =====
 TabUtility:CreateToggle({
     Name = "Infinity Jump 🤸‍♂️♾️",
@@ -619,18 +622,63 @@ TabUtility:CreateButton({
     end,
 })
  
--- ===== Anti AFK =====
+-- ===== Anti AFK ala Delta =====
+local function doRandomAction()
+    local choice = math.random(1,4)
+ 
+    if choice == 1 then
+        -- Klik kanan mouse
+        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(0.1)
+        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+ 
+    elseif choice == 2 then
+        -- Goyang kamera
+        local cam = workspace.CurrentCamera
+        cam.CFrame = cam.CFrame * CFrame.Angles(0, math.rad(math.random(-2,2)), 0)
+ 
+    elseif choice == 3 then
+        -- Zoom kamera
+        local cam = workspace.CurrentCamera
+        local originalFOV = cam.FieldOfView
+        cam.FieldOfView = originalFOV + math.random(-4,4)
+        task.wait(0.3)
+        cam.FieldOfView = originalFOV
+ 
+    elseif choice == 4 then
+        -- Tekan tombol (Shift / Space)
+        local key = (math.random(1,2) == 1) and "LeftShift" or "Space"
+        VirtualInputManager:SendKeyEvent(true, key, false, game)
+        task.wait(0.1)
+        VirtualInputManager:SendKeyEvent(false, key, false, game)
+    end
+end
+ 
+local function startAntiAfk()
+    if antiAfkConnection then antiAfkConnection:Disconnect() end
+    antiAfkConnection = LocalPlayer.Idled:Connect(function() end)
+ 
+    antiAfkLoop = task.spawn(function()
+        while antiAfkEnabled do
+            doRandomAction()
+            task.wait(math.random(30,60)) -- 30–60 detik
+        end
+    end)
+end
+ 
 TabUtility:CreateToggle({
     Name = "Anti Turu ⏰",
-    CurrentValue = true,
+    CurrentValue = true, -- langsung aktif
     Callback = function(Value)
+        antiAfkEnabled = Value
+ 
         if Value then
-            antiAfkConnection = LocalPlayer.Idled:Connect(function()
-                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                task.wait(1)
-                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-            end)
+            startAntiAfk()
         else
+            if antiAfkLoop then
+                task.cancel(antiAfkLoop)
+                antiAfkLoop = nil
+            end
             if antiAfkConnection then
                 antiAfkConnection:Disconnect()
                 antiAfkConnection = nil
@@ -638,6 +686,9 @@ TabUtility:CreateToggle({
         end
     end,
 })
+ 
+-- Auto start saat script jalan
+startAntiAfk()
  
 -- Section + Tutorial
 TabUtility:CreateSection("📚 Tutorial 📚")
