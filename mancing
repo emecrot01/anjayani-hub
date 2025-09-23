@@ -155,9 +155,9 @@ local function fish()
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
         task.wait(0.05)
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(1 + math.random() * 0.3)
+        task.wait(1 + math.random() * 0.2)
         Net["RE/FishingCompleted"]:FireServer()
-        task.wait(0.3 + math.random() * 0.2)
+        task.wait(0.2 + math.random() * 0.1)
         Net["RE/FishingCompleted"]:FireServer()
 
         currentFishCount += 1
@@ -525,43 +525,41 @@ TabShop:CreateParagraph({
  
 -- ====== TAB 6: Utility ⚙️ ======
 local TabUtility = Window:CreateTab("Utility ⚙️")
- 
+
 -- Services
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 local VirtualUser = game:GetService("VirtualUser")
-local VirtualInputManager = game:GetService("VirtualInputManager")
- 
+
 -- Variabel global
 local Humanoid
 local defaultWalkSpeed = 20
 local defaultJumpPower = 50
 local infiniteJump = false
 local antiAfkEnabled = true
-local antiAfkLoop
 local antiAfkConnection
- 
+
 -- Fungsi untuk update Humanoid setiap spawn / respawn
 local function setupCharacter(char)
     Humanoid = char:WaitForChild("Humanoid")
- 
+
     -- Update default sesuai server
     defaultWalkSpeed = Humanoid.WalkSpeed
     defaultJumpPower = Humanoid.JumpPower
- 
+
     -- Reset slider ke default (biar balik normal pas mati/reset)
     if walkSpeedSlider then walkSpeedSlider:Set(defaultWalkSpeed) end
     if jumpPowerSlider then jumpPowerSlider:Set(defaultJumpPower) end
 end
- 
+
 -- Pasang ke char sekarang
 if LocalPlayer.Character then
     setupCharacter(LocalPlayer.Character)
 end
 -- Pasang ke setiap respawn
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
- 
+
 -- ===== Walk Speed =====
 walkSpeedSlider = TabUtility:CreateSlider({
     Name = "Walk Speed 👟⚡️",
@@ -576,7 +574,7 @@ walkSpeedSlider = TabUtility:CreateSlider({
         end
     end,
 })
- 
+
 -- ===== Jump Boost =====
 jumpPowerSlider = TabUtility:CreateSlider({
     Name = "Jump Boost 🤸‍♂️🚀",
@@ -591,7 +589,7 @@ jumpPowerSlider = TabUtility:CreateSlider({
         end
     end,
 })
- 
+
 -- ===== Infinite Jump =====
 TabUtility:CreateToggle({
     Name = "Infinity Jump 🤸‍♂️♾️",
@@ -601,14 +599,14 @@ TabUtility:CreateToggle({
         infiniteJump = Value
     end,
 })
- 
+
 -- Handler Infinite Jump
 UserInputService.JumpRequest:Connect(function()
     if infiniteJump and Humanoid then
         Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
     end
 end)
- 
+
 -- ===== Infinity Oxygen =====
 TabUtility:CreateButton({
     Name = "Infinity Oxygen 🤿♾️",
@@ -618,13 +616,13 @@ TabUtility:CreateButton({
             :WaitForChild("_Index")
             :FindFirstChild("sleitnick_net@0.2.0")
             :WaitForChild("net")
- 
+
         local OxygenEvent = Net:FindFirstChild("URE/UpdateOxygen")
- 
+
         local mt = getrawmetatable(game)
         setreadonly(mt, false)
         local oldNamecall = mt.__namecall
- 
+
         mt.__namecall = function(self, ...)
             local method = getnamecallmethod()
             if self == OxygenEvent and method == "FireServer" then
@@ -632,9 +630,9 @@ TabUtility:CreateButton({
             end
             return oldNamecall(self, ...)
         end
- 
+
         setreadonly(mt, true)
- 
+
         Rayfield:Notify({
             Title = "Infinity Oxygen",
             Content = "Aktif ✅ (ga bisa dimatiin, rejoin untuk reset)",
@@ -642,75 +640,31 @@ TabUtility:CreateButton({
         })
     end,
 })
- 
--- ===== Anti AFK (Fishing Mode) =====
-local VU = game:GetService("VirtualUser")
-local VIM = game:GetService("VirtualInputManager")
- 
-local function startFishingAntiAfk()
-    -- Matikan koneksi lama
+
+-- ===== Anti AFK =====
+local function startAntiAfk()
     if antiAfkConnection then antiAfkConnection:Disconnect() end
- 
-    -- BYPASS Roblox bawaan
     antiAfkConnection = LocalPlayer.Idled:Connect(function()
-        VU:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-        task.wait(1)
-        VU:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-    end)
- 
-    -- Loop kamera + spam klik
-    if antiAfkLoop then task.cancel(antiAfkLoop) end
-    antiAfkLoop = task.spawn(function()
-        while antiAfkEnabled do
-            -- Kamera muter biar keliatan aktif
-            local cam = workspace.CurrentCamera
-            cam.CFrame *= CFrame.Angles(0, math.rad(8), 0)
- 
-            -- Spam klik kiri (biar mekanik fishing ke-detect)
-            VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-            task.wait(0.1)
-            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
- 
-            task.wait(math.random(40,60)) -- interval natural 40–60 detik
+        if antiAfkEnabled then
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
         end
     end)
 end
- 
+
 TabUtility:CreateToggle({
     Name = "Anti Turu ⏰",
-    CurrentValue = false,
+    CurrentValue = true,
+    Flag = "AntiTuru",
     Callback = function(Value)
         antiAfkEnabled = Value
         if Value then
-            startFishingAntiAfk()
+            startAntiAfk()
             Rayfield:Notify({
                 Title = "Anti AFK",
-                Content = "Anti AFK + Spam Klik Aktif ✅",
+                Content = "Anti Turu Aktif ✅",
                 Duration = 1
             })
         else
-            if antiAfkLoop then
-                task.cancel(antiAfkLoop)
-                antiAfkLoop = nil
-            end
             if antiAfkConnection then
                 antiAfkConnection:Disconnect()
-                antiAfkConnection = nil
-            end
-            Rayfield:Notify({
-                Title = "Anti AFK",
-                Content = "Dimatikan ❌",
-                Duration = 1
-            })
-        end
-    end,
-})
- 
--- Section + Tutorial
-TabUtility:CreateSection("📚 Tutorial 📚")
-TabUtility:CreateParagraph({
-    Title = "By Mammoth👑",
-    Content = [[
-• Kalo Mau Pake Ya Pake Aja, Paling Yang Penting Cuman Infinity Oxygen🗿
-    ]]
-})
