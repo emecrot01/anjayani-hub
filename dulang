@@ -640,7 +640,7 @@ TabMisc:CreateButton({
             Rayfield:Notify({Title = "No Tool Found", Content = "Harap pegang item dulu sebelum reforge.", Duration = 1})
             return
         end
-
+ 
         local cost
         local successCost, errCost = pcall(function()
             cost = RS.Remotes.Crafting.GetReforgeCost:InvokeServer(tool)
@@ -649,15 +649,15 @@ TabMisc:CreateButton({
             Rayfield:Notify({Title = "Error", Content = "Gagal mengambil biaya reforge: " .. tostring(errCost), Duration = 1})
             return
         end
-
+ 
         Rayfield:Notify({Title = "Reforge Cost", Content = "Biaya reforge item ini: " .. tostring(cost), Duration = 1})
         task.wait(0.25)
-
+ 
         local result
         local success, err = pcall(function()
             result = RS.Remotes.Crafting.ReforgeEquipment:InvokeServer(tool)
         end)
-
+ 
         if success and result then
             Rayfield:Notify({Title = "Reforge Success!", Content = "Item berhasil di-reforge ⚡", Duration = 1})
         else
@@ -665,7 +665,7 @@ TabMisc:CreateButton({
         end
     end
 })
-
+ 
 -- ⚡ WalkSpeed Input
 TabMisc:CreateInput({
     Name = "Set WalkSpeed ⚡",
@@ -681,76 +681,13 @@ TabMisc:CreateInput({
         end
     end,
 })
-
+ 
 TabMisc:CreateButton({
     Name = "Reset WalkSpeed 🔄",
     Callback = function()
         if humanoid then
             humanoid.WalkSpeed = DefaultWalkSpeed
             Rayfield:Notify({Title = "Reset WalkSpeed ✅", Content = "WalkSpeed kembali ke bawaan game (" .. DefaultWalkSpeed .. ").", Duration = 2})
-        end
-    end,
-})
-
--- ===== Anti AFK =====
-local VU = game:GetService("VirtualUser")
-local VIM = game:GetService("VirtualInputManager")
- 
-local function startFishingAntiAfk()
-    -- Matikan koneksi lama
-    if antiAfkConnection then antiAfkConnection:Disconnect() end
- 
-    -- BYPASS Roblox bawaan
-    antiAfkConnection = LocalPlayer.Idled:Connect(function()
-        VU:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-        task.wait(1)
-        VU:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-    end)
- 
-    -- Loop kamera + spam klik
-    if antiAfkLoop then task.cancel(antiAfkLoop) end
-    antiAfkLoop = task.spawn(function()
-        while antiAfkEnabled do
-            -- Kamera muter biar keliatan aktif
-            local cam = workspace.CurrentCamera
-            cam.CFrame *= CFrame.Angles(0, math.rad(8), 0)
- 
-            -- Spam klik kiri (biar mekanik fishing ke-detect)
-            VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-            task.wait(0.1)
-            VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
- 
-            task.wait(math.random(40,60)) -- interval natural 40–60 detik
-        end
-    end)
-end
- 
-TabUtility:CreateToggle({
-    Name = "Anti Turu ⏰",
-    CurrentValue = true,
-    Callback = function(Value)
-        antiAfkEnabled = Value
-        if Value then
-            startFishingAntiAfk()
-            Rayfield:Notify({
-                Title = "Anti AFK",
-                Content = "Anti AFK + Spam Klik Aktif ✅",
-                Duration = 1
-            })
-        else
-            if antiAfkLoop then
-                task.cancel(antiAfkLoop)
-                antiAfkLoop = nil
-            end
-            if antiAfkConnection then
-                antiAfkConnection:Disconnect()
-                antiAfkConnection = nil
-            end
-            Rayfield:Notify({
-                Title = "Anti AFK",
-                Content = "Dimatikan ❌",
-                Duration = 1
-            })
         end
     end,
 })
