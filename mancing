@@ -641,44 +641,6 @@ TabUtility:CreateButton({
     end,
 })
 
--- ===== Anti AFK =====
-local function startAntiAfk()
-    if antiAfkConnection then antiAfkConnection:Disconnect() end
-    antiAfkConnection = LocalPlayer.Idled:Connect(function()
-        if antiAfkEnabled then
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new())
-        end
-    end)
-end
-
-TabUtility:CreateToggle({
-    Name = "Anti Turu ⏰",
-    CurrentValue = true,
-    Flag = "AntiTuru",
-    Callback = function(Value)
-        antiAfkEnabled = Value
-        if Value then
-            startAntiAfk()
-            Rayfield:Notify({
-                Title = "Anti AFK",
-                Content = "Anti Turu Aktif ✅",
-                Duration = 1
-            })
-        else
-            if antiAfkConnection then
-                antiAfkConnection:Disconnect()
-                antiAfkConnection = nil
-            end
-            Rayfield:Notify({
-                Title = "Anti AFK",
-                Content = "Anti Turu Dimatikan ❌",
-                Duration = 1
-            })
-        end
-    end,
-})
- 
 -- Section + Tutorial
 TabUtility:CreateSection("📚 Tutorial 📚")
 TabUtility:CreateParagraph({
