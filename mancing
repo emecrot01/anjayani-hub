@@ -668,3 +668,22 @@ TabUtility:CreateToggle({
         else
             if antiAfkConnection then
                 antiAfkConnection:Disconnect()
+                antiAfkConnection = nil
+            end
+            Rayfield:Notify({
+                Title = "Anti AFK",
+                Content = "Anti Turu Dimatikan ❌",
+                Duration = 1
+            })
+        end
+    end,
+})
+ 
+-- Section + Tutorial
+TabUtility:CreateSection("📚 Tutorial 📚")
+TabUtility:CreateParagraph({
+    Title = "By Mammoth👑",
+    Content = [[
+• Kalo Mau Pake Ya Pake Aja, Paling Yang Penting Cuman Infinity Oxygen🗿
+    ]]
+})
