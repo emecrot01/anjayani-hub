@@ -678,7 +678,7 @@ end
  
 TabUtility:CreateToggle({
     Name = "Anti Turu ⏰",
-    CurrentValue = true,
+    CurrentValue = false,
     Callback = function(Value)
         antiAfkEnabled = Value
         if Value then
