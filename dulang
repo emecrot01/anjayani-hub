@@ -596,43 +596,29 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 -- Humanoid detect + simpan default game
 local humanoid = LocalPlayer.Character and LocalPlayer.Character:WaitForChild("Humanoid")
 local DefaultWalkSpeed = humanoid and humanoid.WalkSpeed or 16
-local DefaultJumpPower = humanoid and humanoid.JumpPower or 50
 
 LocalPlayer.CharacterAdded:Connect(function(char)
     humanoid = char:WaitForChild("Humanoid")
     DefaultWalkSpeed = humanoid.WalkSpeed
-    DefaultJumpPower = humanoid.JumpPower
 end)
 
--- 🔮 Button Enchant Pan
+-- 🔮 Enchant Pan Anywhere
 TabMisc:CreateButton({
     Name = "Enchant Pan 🔮",
     Callback = function()
         local rerollItem = BackpackTwo:FindFirstChild("Aetherite") or BackpackTwo:FindFirstChild("Aurorite")
         if rerollItem then
-            Rayfield:Notify({
-                Title = "Proses Enchant ✨",
-                Content = "Sedang mencoba enchant pan...",
-                Duration = 2.5,
-            })
+            Rayfield:Notify({Title = "Proses Enchant ✨", Content = "Sedang mencoba enchant pan...", Duration = 2.5})
             task.wait(2.5)
             RS.Remotes.Crafting.Enchant:InvokeServer(rerollItem)
-            Rayfield:Notify({
-                Title = "Enchant Berhasil ✅",
-                Content = "Item berhasil di-enchant!",
-                Duration = 2,
-            })
+            Rayfield:Notify({Title = "Enchant Berhasil ✅", Content = "Item berhasil di-enchant!", Duration = 2})
         else
-            Rayfield:Notify({
-                Title = "Gagal ❌",
-                Content = "Aetherite/Aurorite-nya Mana Blokk🗿",
-                Duration = 3,
-            })
+            Rayfield:Notify({Title = "Gagal ❌", Content = "Aetherite/Aurorite-nya Mana Blokk🗿", Duration = 3})
         end
     end,
 })
 
--- 👨‍💼 Button TP Merchant
+-- 👨‍💼 TP To Merchant
 TabMisc:CreateButton({
     Name = "TP Traveling Merchant 🛒",
     Callback = function()
@@ -640,26 +626,18 @@ TabMisc:CreateButton({
         if merchant and merchant:FindFirstChild("HumanoidRootPart") then
             LocalPlayer.Character:PivotTo(merchant.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0))
         else
-            Rayfield:Notify({
-                Title = "Merchant Tidak Ada ❌",
-                Content = "Traveling Merchant belum spawn 🗿",
-                Duration = 4,
-            })
+            Rayfield:Notify({Title = "Merchant Tidak Ada ❌", Content = "Traveling Merchant belum spawn 🗿", Duration = 4})
         end
     end,
 })
 
--- 🔧 Button Reforge Anywhere
+-- 🔧 Reforge Anywhere
 TabMisc:CreateButton({
     Name = "Reforge Anywhere 🔧",
     Callback = function()
         local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
         if not tool then
-            Rayfield:Notify({
-                Title = "No Tool Found",
-                Content = "Harap pegang item dulu sebelum reforge.",
-                Duration = 1
-            })
+            Rayfield:Notify({Title = "No Tool Found", Content = "Harap pegang item dulu sebelum reforge.", Duration = 1})
             return
         end
 
@@ -668,38 +646,22 @@ TabMisc:CreateButton({
             cost = RS.Remotes.Crafting.GetReforgeCost:InvokeServer(tool)
         end)
         if not successCost then
-            Rayfield:Notify({
-                Title = "Error",
-                Content = "Gagal mengambil biaya reforge: " .. tostring(errCost),
-                Duration = 1
-            })
+            Rayfield:Notify({Title = "Error", Content = "Gagal mengambil biaya reforge: " .. tostring(errCost), Duration = 1})
             return
         end
 
-        Rayfield:Notify({
-            Title = "Reforge Cost",
-            Content = "Biaya reforge item ini: " .. tostring(cost),
-            Duration = 1
-        })
-
+        Rayfield:Notify({Title = "Reforge Cost", Content = "Biaya reforge item ini: " .. tostring(cost), Duration = 1})
         task.wait(0.25)
+
         local result
         local success, err = pcall(function()
             result = RS.Remotes.Crafting.ReforgeEquipment:InvokeServer(tool)
         end)
 
         if success and result then
-            Rayfield:Notify({
-                Title = "Reforge Success!",
-                Content = "Item berhasil di-reforge ⚡",
-                Duration = 1
-            })
+            Rayfield:Notify({Title = "Reforge Success!", Content = "Item berhasil di-reforge ⚡", Duration = 1})
         else
-            Rayfield:Notify({
-                Title = "Reforge Failed",
-                Content = "Terjadi error: " .. tostring(err or result),
-                Duration = 1
-            })
+            Rayfield:Notify({Title = "Reforge Failed", Content = "Terjadi error: " .. tostring(err or result), Duration = 1})
         end
     end
 })
@@ -715,11 +677,7 @@ TabMisc:CreateInput({
             if num > 100 then num = 100 end
             if num < 0 then num = 0 end
             humanoid.WalkSpeed = num
-            Rayfield:Notify({
-                Title = "WalkSpeed Updated ✅",
-                Content = "WalkSpeed diatur ke " .. num,
-                Duration = 2,
-            })
+            Rayfield:Notify({Title = "WalkSpeed Updated ✅", Content = "WalkSpeed diatur ke " .. num, Duration = 2})
         end
     end,
 })
@@ -729,45 +687,7 @@ TabMisc:CreateButton({
     Callback = function()
         if humanoid then
             humanoid.WalkSpeed = DefaultWalkSpeed
-            Rayfield:Notify({
-                Title = "Reset WalkSpeed ✅",
-                Content = "WalkSpeed kembali ke bawaan game (" .. DefaultWalkSpeed .. ").",
-                Duration = 2,
-            })
-        end
-    end,
-})
-
--- 🦘 JumpPower Input
-TabMisc:CreateInput({
-    Name = "Set JumpPower 🦘",
-    PlaceholderText = "Masukkan angka (max 100)",
-    RemoveTextAfterFocusLost = true,
-    Callback = function(value)
-        local num = tonumber(value)
-        if humanoid and num then
-            if num > 100 then num = 100 end
-            if num < 0 then num = 0 end
-            humanoid.JumpPower = num
-            Rayfield:Notify({
-                Title = "JumpPower Updated ✅",
-                Content = "JumpPower diatur ke " .. num,
-                Duration = 2,
-            })
-        end
-    end,
-})
-
-TabMisc:CreateButton({
-    Name = "Reset JumpPower 🔄",
-    Callback = function()
-        if humanoid then
-            humanoid.JumpPower = DefaultJumpPower
-            Rayfield:Notify({
-                Title = "Reset JumpPower ✅",
-                Content = "JumpPower kembali ke bawaan game (" .. DefaultJumpPower .. ").",
-                Duration = 2,
-            })
+            Rayfield:Notify({Title = "Reset WalkSpeed ✅", Content = "WalkSpeed kembali ke bawaan game (" .. DefaultWalkSpeed .. ").", Duration = 2})
         end
     end,
 })
@@ -778,45 +698,51 @@ local antiAfkLoop
 local antiAfkConnection
 
 local function doRandomAction()
-    local choice = math.random(1,4)
+    -- Pilihan aksi ringan untuk mencegah kick
+    local choice = math.random(1,3)
+
     if choice == 1 then
         -- Klik kanan mouse
         VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
         task.wait(0.1)
         VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+
     elseif choice == 2 then
-        -- Goyang kamera
-        local cam = workspace.CurrentCamera
-        cam.CFrame = cam.CFrame * CFrame.Angles(0, math.rad(math.random(-2,2)), 0)
-    elseif choice == 3 then
-        -- Zoom kamera
-        local cam = workspace.CurrentCamera
-        local originalFOV = cam.FieldOfView
-        cam.FieldOfView = originalFOV + math.random(-4,4)
-        task.wait(0.3)
-        cam.FieldOfView = originalFOV
-    elseif choice == 4 then
-        -- Tekan tombol (Shift / Space)
+        -- Tekan tombol Shift atau Space
         local key = (math.random(1,2) == 1) and "LeftShift" or "Space"
         VirtualInputManager:SendKeyEvent(true, key, false, game)
         task.wait(0.1)
         VirtualInputManager:SendKeyEvent(false, key, false, game)
+
+    elseif choice == 3 then
+        -- Klik kiri mouse
+        VirtualUser:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(0.1)
+        VirtualUser:Button1Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
     end
 end
 
+local function startAntiAfk()
+    if antiAfkConnection then antiAfkConnection:Disconnect() end
+    antiAfkConnection = LocalPlayer.Idled:Connect(function() end)
+
+    antiAfkLoop = task.spawn(function()
+        while antiAfkEnabled do
+            doRandomAction()
+            task.wait(math.random(60,90)) -- delay 60–90 detik
+        end
+    end)
+end
+
+-- Toggle Anti AFK
 TabMisc:CreateToggle({
     Name = "Anti Turu ⏰",
-    CurrentValue = true, -- default ON
+    CurrentValue = true, -- langsung ON
     Callback = function(Value)
         antiAfkEnabled = Value
+
         if Value then
-            antiAfkConnection = LocalPlayer.Idled:Connect(function() end)
-            antiAfkLoop = task.spawn(function()
-                while antiAfkEnabled do
-                    doRandomAction()
-                    task.wait(math.random(30,60))
-                end
-            end)
+            startAntiAfk()
         else
             if antiAfkLoop then
                 task.cancel(antiAfkLoop)
@@ -829,3 +755,6 @@ TabMisc:CreateToggle({
         end
     end,
 })
+
+-- langsung jalankan loop saat skrip load
+startAntiAfk()
