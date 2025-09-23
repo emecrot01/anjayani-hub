@@ -51,6 +51,33 @@ TabHome:CreateParagraph({
     ]]
 })
 
+-- Slot Anti AFK di Home
+TabHome:CreateSection("⏰ Anti AFK")
+TabHome:CreateParagraph({
+    Title = "Anti Turu ⏰",
+    Content = "AON 🟢"
+})
+ 
+-- 🔒 Anti AFK (Genesis Copy + Loop 10 menit)
+local Players = game:service("Players")
+local LocalPlayer = Players.LocalPlayer
+local VirtualUser = game:service("VirtualUser")
+ 
+-- Trigger bawaan Roblox (20 menit sekali)
+LocalPlayer.Idled:connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
+ 
+-- Loop cadangan tiap 10 menit
+task.spawn(function()
+    while true do
+        task.wait(600) -- 600 detik = 10 menit
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end
+end)
+
 -- TAB 2: Auto Farm ⛏️
 local TabFarm = Window:CreateTab("Auto Farm ⛏️")
 
@@ -630,7 +657,7 @@ TabMisc:CreateButton({
         end
     end,
 })
-
+ 
 -- 🔧 Reforge Anywhere
 TabMisc:CreateButton({
     Name = "Reforge Anywhere 🔧",
