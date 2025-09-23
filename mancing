@@ -45,6 +45,33 @@ TabHome:CreateParagraph({
     Content = "EmeCRT"
 })
 
+-- Slot Anti AFK di Home
+TabHome:CreateSection("⏰ Anti AFK")
+TabHome:CreateParagraph({
+    Title = "Anti Turu ⏰",
+    Content = "AON 🟢"
+})
+ 
+-- 🔒 Anti AFK (Genesis Copy + Loop 10 menit)
+local Players = game:service("Players")
+local LocalPlayer = Players.LocalPlayer
+local VirtualUser = game:service("VirtualUser")
+ 
+-- Trigger bawaan Roblox (20 menit sekali)
+LocalPlayer.Idled:connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
+ 
+-- Loop cadangan tiap 10 menit
+task.spawn(function()
+    while true do
+        task.wait(600) -- 600 detik = 10 menit
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end
+end)
+
 -- ====== TAB 2: Auto Fishing 🎣 ======
 local TabFishing = Window:CreateTab("🎣 Auto Fishing")
 local Net = game:GetService("ReplicatedStorage").Packages["_Index"]["sleitnick_net@0.2.0"].net
