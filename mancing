@@ -53,7 +53,10 @@ local LocalPlayer = game:GetService("Players").LocalPlayer
 -- ====== Saved TP 💾⚡ ======
 TabFishing:CreateSection("Saved TP 💾⚡")
 local savedTP = nil
+local freezeLoop = nil
+local freezeEnabled = false
 
+-- Save Koordinat 📌
 TabFishing:CreateButton({
     Name = "Save Koordinat 📌",
     Callback = function()
@@ -71,29 +74,47 @@ TabFishing:CreateButton({
     end
 })
 
-TabFishing:CreateButton({
-    Name = "TP To Saved Koordinat 🚀",
-    Callback = function()
-        if not savedTP then
+-- Freeze ke Saved TP 🚀
+TabFishing:CreateToggle({
+    Name = "TP & Freeze 🚀",
+    CurrentValue = false,
+    Callback = function(Value)
+        freezeEnabled = Value
+        if freezeEnabled then
+            if not savedTP then
+                Rayfield:Notify({
+                    Title = "Error ❌",
+                    Content = "Belum ada koordinat yang disimpan!",
+                    Duration = 2
+                })
+                return
+            end
+
             Rayfield:Notify({
-                Title = "Error ❌",
-                Content = "Belum ada koordinat yang disimpan!",
+                Title = "Frozen ✅",
+                Content = "Karakter dibekukan di Saved TP!",
                 Duration = 2
             })
-            return
+
+            freezeLoop = game:GetService("RunService").Heartbeat:Connect(function()
+                local char = LocalPlayer.Character
+                if char then
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        hrp.CFrame = savedTP
+                        hrp.AssemblyLinearVelocity = Vector3.new(0,0,0) -- biar ga kegeser
+                        hrp.AssemblyAngularVelocity = Vector3.new(0,0,0)
+                    end
+                end
+            end)
+        else
+            if freezeLoop then freezeLoop:Disconnect() end
+            Rayfield:Notify({
+                Title = "Unfrozen ✅",
+                Content = "Karakter tidak lagi dibekukan!",
+                Duration = 2
+            })
         end
-
-        local char = LocalPlayer.Character
-        if not char then return end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-
-        hrp.CFrame = savedTP
-        Rayfield:Notify({
-            Title = "Teleported ✅",
-            Content = "Berhasil teleport ke Saved TP!",
-            Duration = 2
-        })
     end
 })
 
