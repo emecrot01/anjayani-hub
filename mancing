@@ -1,13 +1,22 @@
+-- ====== Services ======
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local VirtualUser = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
 -- Booting Rayfield UI Library
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-
+ 
 -- Notif Startup
 Rayfield:Notify({
     Title = "Sabar Bngst 🗿🖕🏻",
     Content = "Lagi Loading",
     Duration = 3
 })
-
+ 
 -- Window Utama
 local Window = Rayfield:CreateWindow({
     Name = "EmeCRT Fish It 🐟",
@@ -16,663 +25,56 @@ local Window = Rayfield:CreateWindow({
     ConfigurationSaving = { Enabled = false }
 })
 
--- ====== TAB 1: Home 🏠 ======
+-- ====== Home Tab ======
 local TabHome = Window:CreateTab("🏠 Home")
-TabHome:CreateLabel("Fish It🐟 v2")
+
+TabHome:CreateLabel("Mancing Mania 🎣 v2")
+
 TabHome:CreateSection("📜 Changelog")
 TabHome:CreateParagraph({
-    Title = "Fish It🐟 v2",
+    Title = "Update",
     Content = [[
 📢 Fitur Yang Tersedia:
 - Auto Fishing 🎣
-- Auto Freeze Area Farm (🐙,💰,🔮)
+- Auto Farm (Freeze Area 🐙,💰,🔮)
 - Auto Sell 💰
 - Teleport 🏝️
 - Weather Shop 🏪🔆
 - Utility ⚙️
 
-🔔 Fitur Baru
-- Freeze System Di Beberapa Area Grinding
-- Auto Equip Rod Saat Auto Fishing Dinyalakan 
+🔔 Fitur Baru:
+- Freeze System di beberapa area grinding
+- Auto Equip Rod saat Auto Fishing nyala
 
-🔀 Changed
-- Ada Beberapa Pembaruan Untuk Fitur Fitur Script Dan Memperbaiki Beberapa BUG
+🔀 Perubahan:
+- Beberapa pembaruan & bugfix
     ]]
 })
+
 TabHome:CreateSection("👥 Credits")
 TabHome:CreateParagraph({
     Title = "Developer",
     Content = "EmeCRT"
 })
 
--- Slot Anti AFK di Home
+-- ====== Anti AFK ======
 TabHome:CreateSection("⏰ Anti AFK")
 TabHome:CreateParagraph({
-    Title = "Anti Turu ⏰",
+    Title = "Anti Turu",
     Content = "AON 🟢"
 })
- 
--- 🔒 Anti AFK (Genesis Copy + Loop 10 menit)
-local Players = game:service("Players")
-local LocalPlayer = Players.LocalPlayer
-local VirtualUser = game:service("VirtualUser")
- 
--- Trigger bawaan Roblox (20 menit sekali)
-LocalPlayer.Idled:connect(function()
+
+-- Roblox Idle Handler
+LocalPlayer.Idled:Connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
 end)
- 
--- Loop cadangan tiap 10 menit
+
+-- Loop tambahan 10 menit sekali
 task.spawn(function()
     while true do
-        task.wait(600) -- 600 detik = 10 menit
+        task.wait(600)
         VirtualUser:CaptureController()
         VirtualUser:ClickButton2(Vector2.new())
     end
 end)
-
--- ====== TAB 2: Auto Fishing 🎣 ======
-local TabFishing = Window:CreateTab("🎣 Auto Fishing")
-local Net = game:GetService("ReplicatedStorage").Packages["_Index"]["sleitnick_net@0.2.0"].net
-local LocalPlayer = game:GetService("Players").LocalPlayer
-
--- ====== Saved TP 💾⚡ ======
-TabFishing:CreateSection("Saved TP 💾⚡")
-local savedTP = nil
-local freezeLoop = nil
-local freezeEnabled = false
-
--- Save Koordinat 📌
-TabFishing:CreateButton({
-    Name = "Save Koordinat 📌",
-    Callback = function()
-        local char = LocalPlayer.Character
-        if not char then return end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-
-        savedTP = hrp.CFrame
-        Rayfield:Notify({
-            Title = "Saved TP ✅",
-            Content = "Koordinat tersimpan!",
-            Duration = 2
-        })
-    end
-})
-
--- Freeze ke Saved TP 🚀
-TabFishing:CreateToggle({
-    Name = "TP & Freeze 🚀",
-    CurrentValue = false,
-    Callback = function(Value)
-        freezeEnabled = Value
-        if freezeEnabled then
-            if not savedTP then
-                Rayfield:Notify({
-                    Title = "Error ❌",
-                    Content = "Belum ada koordinat yang disimpan!",
-                    Duration = 2
-                })
-                return
-            end
-
-            Rayfield:Notify({
-                Title = "Frozen ✅",
-                Content = "Karakter dibekukan di Saved TP!",
-                Duration = 2
-            })
-
-            freezeLoop = game:GetService("RunService").Heartbeat:Connect(function()
-                local char = LocalPlayer.Character
-                if char then
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        hrp.CFrame = savedTP
-                        hrp.AssemblyLinearVelocity = Vector3.new(0,0,0) -- biar ga kegeser
-                        hrp.AssemblyAngularVelocity = Vector3.new(0,0,0)
-                    end
-                end
-            end)
-        else
-            if freezeLoop then freezeLoop:Disconnect() end
-            Rayfield:Notify({
-                Title = "Unfrozen ✅",
-                Content = "Karakter tidak lagi dibekukan!",
-                Duration = 2
-            })
-        end
-    end
-})
-
--- ====== Automatic Fishing 🎣 ======
-TabFishing:CreateSection("Automatic Fishing 🎣")
-
-local running = false
-local currentFishCount = 0
-local SellAllRemote = Net["RF/SellAllItems"]
-
-local autoSellActive = false
-local targetFishCount = 0
-
-local function autoSellCheck()
-    if autoSellActive and SellAllRemote and targetFishCount > 0 and currentFishCount >= targetFishCount then
-        task.spawn(function()
-            local ok, err = pcall(function()
-                SellAllRemote:InvokeServer()
-            end)
-            if ok then
-                task.wait(0.3)
-                Rayfield:Notify({
-                    Title = "Auto Sell 💰",
-                    Content = ("Sold %d fishes ✅"):format(currentFishCount),
-                    Duration = 2
-                })
-                currentFishCount = 0
-            else
-                warn("[Fish It] SellAll failed:", err)
-            end
-        end)
-    end
-end
-
-local function fish()
-    task.wait(1)
-    while running do
-        Net["RF/ChargeFishingRod"]:InvokeServer(tick())
-        task.wait(0.05)
-        Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(1 + math.random() * 0.2)
-        Net["RE/FishingCompleted"]:FireServer()
-        task.wait(0.2 + math.random() * 0.1)
-        Net["RE/FishingCompleted"]:FireServer()
-
-        currentFishCount += 1
-        print("Ikan 🐟: " .. currentFishCount)
-        autoSellCheck()
-
-        task.wait(0.1 + math.random() * 0.2)
-    end
-end
-
-local function equipRod()
-    local args = {1}
-    Net["RE/EquipToolFromHotbar"]:FireServer(unpack(args))
-end
-
-TabFishing:CreateToggle({
-    Name = "Auto Fishing 🐟",
-    CurrentValue = false,
-    Callback = function(Value)
-        running = Value
-        if running then
-            equipRod()
-            task.spawn(fish)
-            Rayfield:Notify({
-                Title = "Auto Fishing 🎣",
-                Content = "Dimulai...",
-                Duration = 1
-            })
-        else
-            Rayfield:Notify({
-                Title = "Auto Fishing 🎣",
-                Content = "Dihentikan!",
-                Duration = 1
-            })
-        end
-    end
-})
-
--- Section + Tutorial
-TabFishing:CreateSection("📚 Tutorial 📚")
-TabFishing:CreateParagraph({
-    Title = "By EmeCRT",
-    Content = [[
-• TP Area (Khusus TP Yang Di Set Sendiri)
-• Auto Fishing Biasa 🐟 (Default) Tidak Harus Pake Fitur TP
-    ]]
-})
-
--- ====== TAB 3: Auto Sell 💰 ======
-local TabSell = Window:CreateTab("💰 Auto Sell")
-TabSell:CreateToggle({
-    Name = "Auto Sell 💰",
-    CurrentValue = false,
-    Callback = function(Value)
-        autoSellActive = Value
-        if Value then
-            Rayfield:Notify({
-                Title = "Auto Sell Activated ✅",
-                Content = "Script akan auto sell sesuai target ikan",
-                Duration = 1
-            })
-        else
-            Rayfield:Notify({
-                Title = "Auto Sell Deactivated ❌",
-                Content = "Auto sell dimatikan",
-                Duration = 1
-            })
-        end
-    end
-})
-TabSell:CreateInput({
-    Name = "Target Fish Count 🎯",
-    PlaceholderText = "Contoh: 100",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(Text)
-        local num = tonumber(Text)
-        if num and num > 0 then
-            targetFishCount = num
-            Rayfield:Notify({
-                Title = "Target Updated 🎯",
-                Content = ("Target auto sell: %d ikan"):format(targetFishCount),
-                Duration = 1
-            })
-        else
-            Rayfield:Notify({
-                Title = "Input Error ❌",
-                Content = "Masukkan angka valid!",
-                Duration = 1
-            })
-        end
-    end
-})
-
--- Section + Tutorial
-TabSell:CreateSection("📚 Tutorial 📚")
-TabSell:CreateParagraph({
-    Title = "By EmeCRT",
-    Content = [[
-• Set Jumlah Fish Yang Ingin Di Jual
-• Aktifkan "Auto Sell 💰"
-• Kalau jumlah ikan tercapai → otomatis dijual
-    ]]
-})
-
--- ====== TAB: Teleport ✈️ ======
-local TabTP = Window:CreateTab("✈️ Teleport")
-
--- Data lokasi teleport (Island)
-local teleportLocations = {
-    { Name = "Stingray Shores 🐠", Pos = Vector3.new(19.035, 15, 2889.627) },
-    { Name = "Kohana Island 🏝️", Pos = Vector3.new(-642.76, 19, 618.787) },
-    { Name = "Kohana Volcano 🌋", Pos = Vector3.new(-596.92, 64, 105.63) },
-    { Name = "Coral Reefs 🐚", Pos = Vector3.new(-2797.356, 15, 2110.986) },
-    { Name = "Esoteric Island 🏝️ 🌌", Pos = Vector3.new(2025.875, 30, 1392.24) },
-    { Name = "Esoteric Depth 🌌", Pos = Vector3.new(3211.25, -1297, 1412.00) },
-    { Name = "Tropical Grove 🌴", Pos = Vector3.new(-2046.46, 13, 3658.995) },
-    { Name = "Crater Island ⛰️", Pos = Vector3.new(863.528, 40, 4946.208) },
-    { Name = "Weather Machine Island 🕰️", Pos = Vector3.new(-1503.27, 8, 1909.59) },
-    { Name = "Lost Isle (Sisyphus Statue) 🔱", Pos = Vector3.new(-3693.872, -132, -1042.617) },
-    { Name = "Lost Isle (Treasure Hall) 💎", Pos = Vector3.new(-3600.823, -313, -1405.601) },
-    { Name = "Lost Isle (Treasure Room) 🏴‍☠️", Pos = Vector3.new(-3598.215, -280, -1640.74) },
-    { Name = "Snowy Island ❄️", Pos = Vector3.new(1688.66, 8, 3308.29) },
-}
-
--- Data lokasi teleport (Grind)
-local grindLocations = {
-    {Name = "Enchant Stone Farm 🔮", CFrame = CFrame.new(-2107.84, 6.27, 3692.49)},
-    {Name = "Money Farm 💰", CFrame = CFrame.new(-647.76, 30.01, 118.15)},
-    {Name = "Kraken Farm 🐙", CFrame = CFrame.new(-3730.24, -135.07, -886.17)},
-    {Name = "Weather Island 🌦️", CFrame = CFrame.new(-1525.81, 8.34, 1775.41)},
-    {Name = "Snowy Lake ❄️🐟", CFrame = CFrame.new(1816.62, 2.30, 3385.12)},
-    {Name = "Ice Hole 🧊🕳", CFrame = CFrame.new(2050.95, 6.55, 3387.14)},
-}
-
--- Services
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
--- ===== ISLAND TELEPORT
-local selectedIsland = nil
-TabTP:CreateSection("Island Teleport 🏝️")
-
-TabTP:CreateDropdown({
-    Name = "Pilih Pulau 📍",
-    Options = (function()
-        local names = {}
-        for _, loc in ipairs(teleportLocations) do
-            table.insert(names, loc.Name)
-        end
-        return names
-    end)(),
-    Callback = function(Option)
-        selectedIsland = type(Option) == "table" and Option[1] or Option
-    end
-})
-
-TabTP:CreateButton({
-    Name = "Teleport 🚀",
-    Callback = function()
-        if not selectedIsland then return end
-        for _, loc in ipairs(teleportLocations) do
-            if loc.Name == selectedIsland then
-                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(loc.Pos)
-            end
-        end
-    end
-})
-
--- ===== GRIND TELEPORT
-local selectedGrind = nil
-local grindActive = false
-TabTP:CreateSection("Grind Teleport ⚒️")
-
-TabTP:CreateDropdown({
-    Name = "Pilih Area Grind 📍",
-    Options = (function()
-        local names = {}
-        for _, loc in ipairs(grindLocations) do
-            table.insert(names, loc.Name)
-        end
-        return names
-    end)(),
-    Callback = function(Option)
-        selectedGrind = type(Option) == "table" and Option[1] or Option
-    end
-})
-
-TabTP:CreateToggle({
-    Name = "Aktifkan Grind Freeze 🔒",
-    CurrentValue = false,
-    Callback = function(Value)
-        grindActive = Value
-        local char = LocalPlayer.Character
-        if not char then return end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-
-        if grindActive and selectedGrind then
-            for _, loc in ipairs(grindLocations) do
-                if loc.Name == selectedGrind then
-                    hrp.CFrame = loc.CFrame
-                    hrp.Anchored = true -- ❄️ benar-benar freeze
-                end
-            end
-        else
-            hrp.Anchored = false
-        end
-    end
-})
-
--- Respawn handler (tetap freeze kalau reset)
-LocalPlayer.CharacterAdded:Connect(function(char)
-    if grindActive and selectedGrind then
-        task.wait(1)
-        local hrp = char:WaitForChild("HumanoidRootPart")
-        for _, loc in ipairs(grindLocations) do
-            if loc.Name == selectedGrind then
-                hrp.CFrame = loc.CFrame
-                hrp.Anchored = true
-            end
-        end
-    end
-end)
-
--- Section + Tutorial
-TabTP:CreateSection("📚 Tutorial 📚")
-TabTP:CreateParagraph({
-    Title = "By EmeCRT",
-    Content = [[
-• Tinggal Pilih Mau TP Ke Pulau Mana (Dropdown)
-• Fitur Freeze TP Untuk Grind Di Area Tertentu (Yang Sudah Di Sediakan)
-    ]]
-})
-
--- ====== TAB 5: Shop 🏪 ======
-local TabShop = Window:CreateTab("Shop 🏪") 
- 
--- ====== SECTION: WEATHER SHOP 🔆 ======
-local SectionWeather = TabShop:CreateSection("Weather Shop 🔆")
- 
--- ====== HELPER BELI CUACA ======
-local function buyWeather(weatherName, displayName, silent)
-    local ok, result = pcall(function()
-        return game:GetService("ReplicatedStorage")
-            :WaitForChild("Packages")
-            :WaitForChild("_Index")
-            :WaitForChild("sleitnick_net@0.2.0")
-            :WaitForChild("net")
-            :WaitForChild("RF/PurchaseWeatherEvent")
-            :InvokeServer(weatherName)
-    end)
- 
-    if ok and result then
-        -- sukses: selalu kasih notif
-        Rayfield:Notify({
-            Title = "Buying Successfully ✅",
-            Content = "Thankyou Sultan 👑💰",
-            Duration = 1
-        })
-    else
-        -- gagal: notif muncul hanya kalau bukan mode silent
-        if not silent then
-            Rayfield:Notify({
-                Title = "Buying Fail ❌",
-                Content = "Cek Udah Beli Atau Duit Kurang, Kalau Kurang. MISKIN GAUSH BELAGU🗿🖕🏻",
-                Duration = 1
-            })
-        end
-    end
-end
- 
--- ====== DATA WEATHER ======
-local weathers = {
-    { Name = "Wind 💨 ($10K 💰)",      Id = "Wind",       Display = "Wind 💨" },
-    { Name = "Cloudy ☁️ ($20K 💰)",   Id = "Cloudy",    Display = "Cloudy ☁️" },
-    { Name = "Snow ❄️ ($15K 💰)",     Id = "Snow",      Display = "Snow ❄️" },
-    { Name = "Storm ⛈️ ($35K 💰)",    Id = "Storm",     Display = "Storm ⛈️" },
-    { Name = "Radiant ✨ ($50K 💰)",   Id = "Radiant",   Display = "Radiant ✨" },
-    { Name = "Shark Hunt 🦈 ($300K 💰)", Id = "Shark Hunt", Display = "Shark Hunt 🦈" },
-}
- 
--- Buat list nama untuk dropdown
-local weatherNames = {}
-for _, w in ipairs(weathers) do
-    table.insert(weatherNames, w.Name)
-end
- 
--- ====== VARIABEL PILIHAN (default ke Wind) ======
-local selectedWeather = weatherNames[1]
- 
--- ====== DROPDOWN: SELECT WEATHER 🛒 ======
-local DropdownWeather = TabShop:CreateDropdown({
-    Name = "Select Weather 🛒",
-    Options = weatherNames,
-    CurrentOption = weatherNames[1], -- default Wind
-    Callback = function(Value)
-        if type(Value) == "table" then Value = Value[1] end
-        selectedWeather = Value
-    end,
-})
- 
--- (Opsional) Set default ke Wind di UI
-pcall(function() DropdownWeather:Set(weatherNames[1]) end)
- 
--- ====== BUTTON: BUY WEATHER 💲 ======
-TabShop:CreateButton({
-    Name = "Buy Weather 💰⛅",
-    Callback = function()
-        if not selectedWeather then
-            Rayfield:Notify({
-                Title = "Shop 🏪",
-                Content = "Pilih Cuacanya Bre🗿",
-                Duration = 1
-            })
-            return
-        end
-        for _, w in ipairs(weathers) do
-            if w.Name == selectedWeather then
-                buyWeather(w.Id, w.Display, false) -- manual → notif tetap ada
-                break
-            end
-        end
-    end,
-})
- 
--- ====== TOGGLE: AUTO BUY WEATHER (30s) ======
-local autoWeather = false
-local cooldown = 30 -- detik
- 
--- Loop Auto Buy Weather (Wind, Cloudy, Storm)
-task.spawn(function()
-    while task.wait(cooldown) do
-        if autoWeather then
-            for _, w in ipairs(weathers) do
-                if w.Id == "Wind" or w.Id == "Cloudy" or w.Id == "Storm" then
-                    buyWeather(w.Id, w.Display, true) -- silent = true → gak spam notif gagal
-                end
-            end
-        end
-    end
-end)
- 
-TabShop:CreateToggle({
-    Name = "Auto Buy Weather (💨/☁️/⛈️)",
-    CurrentValue = false,
-    Flag = "AutoWeather",
-    Callback = function(Value)
-        autoWeather = Value
-        Rayfield:Notify({
-            Title = "Auto Weather",
-            Content = autoWeather and "ON ✅ (30s cooldown)" or "OFF ❌",
-            Duration = 2
-        })
-    end,
-})
- 
--- Section + Tutorial
-TabShop:CreateSection("📚 Tutorial 📚")
-TabShop:CreateParagraph({
-    Title = "By Mammoth👑",
-    Content = [[
-• Tinggal Pilih Mau Beli Yang Mana, Minimal Jangan Miskin Aja🗿
-    ]]
-})
- 
--- ====== TAB 6: Utility ⚙️ ======
-local TabUtility = Window:CreateTab("Utility ⚙️")
-
--- Services
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
-local VirtualUser = game:GetService("VirtualUser")
-
--- Variabel global
-local Humanoid
-local defaultWalkSpeed = 20
-local defaultJumpPower = 50
-local infiniteJump = false
-local antiAfkEnabled = true
-local antiAfkConnection
-
--- Fungsi untuk update Humanoid setiap spawn / respawn
-local function setupCharacter(char)
-    Humanoid = char:WaitForChild("Humanoid")
-
-    -- Update default sesuai server
-    defaultWalkSpeed = Humanoid.WalkSpeed
-    defaultJumpPower = Humanoid.JumpPower
-
-    -- Reset slider ke default (biar balik normal pas mati/reset)
-    if walkSpeedSlider then walkSpeedSlider:Set(defaultWalkSpeed) end
-    if jumpPowerSlider then jumpPowerSlider:Set(defaultJumpPower) end
-end
-
--- Pasang ke char sekarang
-if LocalPlayer.Character then
-    setupCharacter(LocalPlayer.Character)
-end
--- Pasang ke setiap respawn
-LocalPlayer.CharacterAdded:Connect(setupCharacter)
-
--- ===== Walk Speed =====
-walkSpeedSlider = TabUtility:CreateSlider({
-    Name = "Walk Speed 👟⚡️",
-    Range = {0, 500},
-    Increment = 1,
-    Suffix = "Speed",
-    CurrentValue = defaultWalkSpeed,
-    Flag = "WalkSpeed",
-    Callback = function(Value)
-        if Humanoid then
-            Humanoid.WalkSpeed = Value
-        end
-    end,
-})
-
--- ===== Jump Boost =====
-jumpPowerSlider = TabUtility:CreateSlider({
-    Name = "Jump Boost 🤸‍♂️🚀",
-    Range = {0, 500},
-    Increment = 5,
-    Suffix = "Power",
-    CurrentValue = defaultJumpPower,
-    Flag = "JumpPower",
-    Callback = function(Value)
-        if Humanoid then
-            Humanoid.JumpPower = Value
-        end
-    end,
-})
-
--- ===== Infinite Jump =====
-TabUtility:CreateToggle({
-    Name = "Infinity Jump 🤸‍♂️♾️",
-    CurrentValue = false,
-    Flag = "InfiniteJump",
-    Callback = function(Value)
-        infiniteJump = Value
-    end,
-})
-
--- Handler Infinite Jump
-UserInputService.JumpRequest:Connect(function()
-    if infiniteJump and Humanoid then
-        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end)
-
--- ===== Infinity Oxygen =====
-TabUtility:CreateButton({
-    Name = "Infinity Oxygen 🤿♾️",
-    Callback = function()
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local Net = ReplicatedStorage:WaitForChild("Packages")
-            :WaitForChild("_Index")
-            :FindFirstChild("sleitnick_net@0.2.0")
-            :WaitForChild("net")
-
-        local OxygenEvent = Net:FindFirstChild("URE/UpdateOxygen")
-
-        local mt = getrawmetatable(game)
-        setreadonly(mt, false)
-        local oldNamecall = mt.__namecall
-
-        mt.__namecall = function(self, ...)
-            local method = getnamecallmethod()
-            if self == OxygenEvent and method == "FireServer" then
-                return nil
-            end
-            return oldNamecall(self, ...)
-        end
-
-        setreadonly(mt, true)
-
-        Rayfield:Notify({
-            Title = "Infinity Oxygen",
-            Content = "Aktif ✅ (ga bisa dimatiin, rejoin untuk reset)",
-            Duration = 2
-        })
-    end,
-})
-
--- Section + Tutorial
-TabUtility:CreateSection("📚 Tutorial 📚")
-TabUtility:CreateParagraph({
-    Title = "By Mammoth👑",
-    Content = [[
-• Kalo Mau Pake Ya Pake Aja, Paling Yang Penting Cuman Infinity Oxygen🗿
-    ]]
-})
