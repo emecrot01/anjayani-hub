@@ -826,7 +826,7 @@ TabShop:CreateButton({
 })
 
 local autoWeather = false
-local cooldown = 30
+local cooldown = 10
 task.spawn(function()
     while task.wait(cooldown) do
         if autoWeather then
