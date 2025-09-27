@@ -922,7 +922,7 @@ TabUtility:CreateButton({
     end,
 })
 
--- ===== Show Coordinates + LookAt + Copy =====
+ -- ===== Show Coordinates (Compact) 📍 =====
 local coordGui, coordLabel, copyButton, coordLoop, lastText = nil, nil, nil, nil, ""
 
 TabUtility:CreateToggle({
@@ -937,34 +937,34 @@ TabUtility:CreateToggle({
                 coordGui.Parent = game:GetService("CoreGui")
 
                 local frame = Instance.new("Frame")
-                frame.Size = UDim2.new(0, 300, 0, 80)
-                frame.Position = UDim2.new(0.5, -150, 0.05, 0)
+                frame.Size = UDim2.new(0, 220, 0, 65) -- lebih kecil
+                frame.Position = UDim2.new(0.5, -110, 0.8, 0) -- agak tengah bawah
                 frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
-                frame.BackgroundTransparency = 0.2
+                frame.BackgroundTransparency = 0.25
                 frame.BorderSizePixel = 0
                 frame.Parent = coordGui
 
                 coordLabel = Instance.new("TextLabel")
-                coordLabel.Size = UDim2.new(1, -20, 0, 50)
+                coordLabel.Size = UDim2.new(1, -20, 0, 35)
                 coordLabel.Position = UDim2.new(0,10,0,5)
                 coordLabel.BackgroundTransparency = 1
                 coordLabel.TextColor3 = Color3.fromRGB(0,255,0)
                 coordLabel.TextStrokeTransparency = 0
                 coordLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
                 coordLabel.Font = Enum.Font.Code
-                coordLabel.TextSize = 18
+                coordLabel.TextSize = 14 -- kecil tapi masih jelas
                 coordLabel.Text = "Menunggu posisi..."
                 coordLabel.TextYAlignment = Enum.TextYAlignment.Top
                 coordLabel.TextXAlignment = Enum.TextXAlignment.Left
                 coordLabel.Parent = frame
 
                 copyButton = Instance.new("TextButton")
-                copyButton.Size = UDim2.new(0, 100, 0, 25)
-                copyButton.Position = UDim2.new(1,-110,1,-30)
+                copyButton.Size = UDim2.new(0, 90, 0, 22)
+                copyButton.Position = UDim2.new(0.5, -45, 1, -27) -- tengah bawah
                 copyButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
                 copyButton.TextColor3 = Color3.fromRGB(255,255,255)
                 copyButton.Font = Enum.Font.Code
-                copyButton.TextSize = 16
+                copyButton.TextSize = 13
                 copyButton.Text = "Copy 📋"
                 copyButton.Parent = frame
 
@@ -989,7 +989,7 @@ TabUtility:CreateToggle({
                         local targetPoint = pos + (lookVector * 100)
 
                         local text = string.format(
-                            "LookAt → X: %.0f | Y: %.0f | Z: %.0f\nPos    → X: %.0f | Y: %.0f | Z: %.0f",
+                            "LookAt → %.0f, %.0f, %.0f\nPos    → %.0f, %.0f, %.0f",
                             targetPoint.X, targetPoint.Y, targetPoint.Z,
                             pos.X, pos.Y, pos.Z
                         )
