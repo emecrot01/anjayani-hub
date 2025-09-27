@@ -89,8 +89,8 @@ local Net = ReplicatedStorage.Packages["_Index"]["sleitnick_net@0.2.0"].net
 local grindLocations = {
     {
         Name = "Money Farm 💰",
-        Pos = Vector3.new(-649, 46, 169),
-        LookAt = Vector3.new(-678, 46, 264)
+        Pos = Vector3.new(-630, 55, 197),
+        LookAt = Vector3.new(-721, 55, 155)
     },
     {
         Name = "Enchant Stone Farm 🔮",
