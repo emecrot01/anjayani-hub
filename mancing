@@ -922,7 +922,7 @@ TabUtility:CreateButton({
     end,
 })
 
--- ===== Show Coordinates (Adjusted) 📍 =====
+-- ===== Show Coordinates (Custom Size & Position) 📍 =====
 local coordGui, coordLabel, copyButton, coordLoop, lastText = nil, nil, nil, nil, ""
 
 TabUtility:CreateToggle({
@@ -937,34 +937,34 @@ TabUtility:CreateToggle({
                 coordGui.Parent = game:GetService("CoreGui")
 
                 local frame = Instance.new("Frame")
-                frame.Size = UDim2.new(0, 260, 0, 85) -- agak besar
-                frame.Position = UDim2.new(0.5, -130, 0.65, 0) -- naik ke area kotak hijau
+                frame.Size = UDim2.new(0, 350, 0, 95) -- sesuai permintaan
+                frame.Position = UDim2.new(0.5, -175, 0.50, 0) -- pas tengah bawah
                 frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
                 frame.BackgroundTransparency = 0.25
                 frame.BorderSizePixel = 0
                 frame.Parent = coordGui
 
                 coordLabel = Instance.new("TextLabel")
-                coordLabel.Size = UDim2.new(1, -20, 0, 45)
+                coordLabel.Size = UDim2.new(1, -20, 0, 55)
                 coordLabel.Position = UDim2.new(0,10,0,5)
                 coordLabel.BackgroundTransparency = 1
                 coordLabel.TextColor3 = Color3.fromRGB(0,255,0)
                 coordLabel.TextStrokeTransparency = 0
                 coordLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
                 coordLabel.Font = Enum.Font.Code
-                coordLabel.TextSize = 16 -- lebih besar
+                coordLabel.TextSize = 20 -- teks lebih besar
                 coordLabel.Text = "Menunggu posisi..."
                 coordLabel.TextYAlignment = Enum.TextYAlignment.Top
                 coordLabel.TextXAlignment = Enum.TextXAlignment.Left
                 coordLabel.Parent = frame
 
                 copyButton = Instance.new("TextButton")
-                copyButton.Size = UDim2.new(0, 100, 0, 25) -- lebih besar dikit
-                copyButton.Position = UDim2.new(0.5, -50, 1, -30) -- tengah bawah
+                copyButton.Size = UDim2.new(0, 110, 0, 28)
+                copyButton.Position = UDim2.new(0.5, -55, 1, -32) -- center bawah frame
                 copyButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
                 copyButton.TextColor3 = Color3.fromRGB(255,255,255)
                 copyButton.Font = Enum.Font.Code
-                copyButton.TextSize = 14
+                copyButton.TextSize = 16
                 copyButton.Text = "Copy 📋"
                 copyButton.Parent = frame
 
