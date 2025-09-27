@@ -25,55 +25,57 @@ local Window = Rayfield:CreateWindow({
     ConfigurationSaving = { Enabled = false }
 })
 
--- ====== Home Tab ======
+-- ====== Home 🏠 ======
 local TabHome = Window:CreateTab("🏠 Home")
-
-TabHome:CreateLabel("Mancing Mania 🎣 v2")
-
+TabHome:CreateLabel("Fish It🐟 v2")
 TabHome:CreateSection("📜 Changelog")
 TabHome:CreateParagraph({
-    Title = "Update",
+    Title = "Fish It🐟 v2",
     Content = [[
 📢 Fitur Yang Tersedia:
 - Auto Fishing 🎣
-- Auto Farm (Freeze Area 🐙,💰,🔮)
+- Auto Freeze Area Farm (🐙,💰,🔮)
 - Auto Sell 💰
 - Teleport 🏝️
 - Weather Shop 🏪🔆
 - Utility ⚙️
-
-🔔 Fitur Baru:
-- Freeze System di beberapa area grinding
-- Auto Equip Rod saat Auto Fishing nyala
-
-🔀 Perubahan:
-- Beberapa pembaruan & bugfix
+ 
+🔔 Fitur Baru
+- Freeze System Di Beberapa Area Grinding
+- Auto Equip Rod Saat Auto Fishing Dinyalakan 
+ 
+🔀 Changed
+- Ada Beberapa Pembaruan Untuk Fitur Fitur Script Dan Memperbaiki Beberapa BUG
     ]]
 })
-
 TabHome:CreateSection("👥 Credits")
 TabHome:CreateParagraph({
     Title = "Developer",
     Content = "EmeCRT"
 })
-
--- ====== Anti AFK ======
+ 
+-- Slot Anti AFK di Home
 TabHome:CreateSection("⏰ Anti AFK")
 TabHome:CreateParagraph({
-    Title = "Anti Turu",
+    Title = "Anti Turu ⏰",
     Content = "AON 🟢"
 })
-
--- Roblox Idle Handler
-LocalPlayer.Idled:Connect(function()
+ 
+-- 🔒 Anti AFK (Genesis Copy + Loop 10 menit)
+local Players = game:service("Players")
+local LocalPlayer = Players.LocalPlayer
+local VirtualUser = game:service("VirtualUser")
+ 
+-- Trigger bawaan Roblox (20 menit sekali)
+LocalPlayer.Idled:connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
 end)
-
--- Loop tambahan 10 menit sekali
+ 
+-- Loop cadangan tiap 10 menit
 task.spawn(function()
     while true do
-        task.wait(600)
+        task.wait(600) -- 600 detik = 10 menit
         VirtualUser:CaptureController()
         VirtualUser:ClickButton2(Vector2.new())
     end
