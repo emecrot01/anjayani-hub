@@ -327,53 +327,6 @@ TabFarm:CreateToggle({
     end
 })
 
--- Perfect Hit ⚡ (Auto release saat val==1)
-local autoPerfect = false
-
-TabFarm:CreateToggle({
-    Name = "Perfect Hit⚡",
-    CurrentValue = false,
-    Callback = function(state)
-        autoPerfect = state
-        if state then
-            notify("Perfect Hit⚡","Auto Perfect Dig aktif ✅")
-        else
-            notify("Perfect Hit⚡","Dimatikan ❌")
-        end
-    end
-})
-
--- Hook Collect
-local function hookCollect(tool)
-    local scripts = tool:FindFirstChild("Scripts")
-    if not scripts then return end
-    local collect = scripts:FindFirstChild("Collect")
-    local toggleRemote = scripts:FindFirstChild("ToggleShovelActive")
-    if not collect or not collect.InvokeServer then return end
-
-    local old; old = hookfunction(collect.InvokeServer, function(self, val, ...)
-        if autoPerfect and val == 1 then
-            -- Auto release shovel kalau sudah Perfect
-            if toggleRemote then
-                pcall(function() toggleRemote:FireServer(false) end)
-            end
-        end
-        return old(self, val, ...)
-    end)
-end
-
--- Auto hook setiap kali equip tool
-LocalPlayer.Character.ChildAdded:Connect(function(child)
-    if child:IsA("Tool") then
-        task.wait(0.2)
-        hookCollect(child)
-    end
-end)
-
--- Hook tool yang sudah dipegang
-local tool = getTool()
-if tool then hookCollect(tool) end
-
 -- TAB 3: Auto Sell 💰
 local TabSell = Window:CreateTab("Auto Sell 💰")
 
