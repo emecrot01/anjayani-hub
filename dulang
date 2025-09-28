@@ -327,7 +327,7 @@ TabFarm:CreateToggle({
     end
 })
 
--- Perfect Hit ⚡ (Auto release at 1)
+-- Perfect Hit ⚡ (Auto release saat val==1)
 local autoPerfect = false
 
 TabFarm:CreateToggle({
@@ -336,36 +336,33 @@ TabFarm:CreateToggle({
     Callback = function(state)
         autoPerfect = state
         if state then
-            notify("Perfect Hit⚡", "Auto Perfect Activated ✅")
+            notify("Perfect Hit⚡","Auto Perfect Dig aktif ✅")
         else
-            notify("Perfect Hit⚡", "Deactivated ❌")
+            notify("Perfect Hit⚡","Dimatikan ❌")
         end
     end
 })
 
--- Hook Collect remote
+-- Hook Collect
 local function hookCollect(tool)
-    if not tool then return end
     local scripts = tool:FindFirstChild("Scripts")
     if not scripts then return end
     local collect = scripts:FindFirstChild("Collect")
     local toggleRemote = scripts:FindFirstChild("ToggleShovelActive")
+    if not collect or not collect.InvokeServer then return end
 
-    if collect and collect.InvokeServer then
-        local old; old = hookfunction(collect.InvokeServer, function(self, val, ...)
-            -- kalau toggle aktif dan val == 1, berarti Perfect
-            if autoPerfect and val == 1 then
-                -- otomatis lepas shovel
-                if toggleRemote then
-                    pcall(function() toggleRemote:FireServer(false) end)
-                end
+    local old; old = hookfunction(collect.InvokeServer, function(self, val, ...)
+        if autoPerfect and val == 1 then
+            -- Auto release shovel kalau sudah Perfect
+            if toggleRemote then
+                pcall(function() toggleRemote:FireServer(false) end)
             end
-            return old(self, val, ...)
-        end)
-    end
+        end
+        return old(self, val, ...)
+    end)
 end
 
--- auto-hook setiap kali equip tool baru
+-- Auto hook setiap kali equip tool
 LocalPlayer.Character.ChildAdded:Connect(function(child)
     if child:IsA("Tool") then
         task.wait(0.2)
@@ -373,7 +370,7 @@ LocalPlayer.Character.ChildAdded:Connect(function(child)
     end
 end)
 
--- kalau sudah pegang tool saat script jalan
+-- Hook tool yang sudah dipegang
 local tool = getTool()
 if tool then hookCollect(tool) end
 
