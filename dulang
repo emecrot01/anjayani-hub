@@ -327,6 +327,68 @@ TabFarm:CreateToggle({
     end
 })
 
+-- Perfect Hit ⚡
+local autoPerfect = false
+local RunService = game:GetService("RunService")
+
+TabFarm:CreateToggle({
+    Name = "Perfect Hit⚡",
+    CurrentValue = false,
+    Callback = function(state)
+        autoPerfect = state
+        if state then
+            notify("Perfect Hit⚡", "Activated ✅")
+        else
+            notify("Perfect Hit⚡", "Deactivated ❌")
+        end
+    end
+})
+
+-- Detector system
+RunService.Heartbeat:Connect(function()
+    if not autoPerfect then return end
+
+    local tool = getTool()
+    if not tool then return end
+    local scripts = tool:FindFirstChild("Scripts")
+    if not scripts then return end
+
+    local toggleRemote = scripts:FindFirstChild("ToggleShovelActive")
+    local collectRemote = scripts:FindFirstChild("Collect")
+    if not toggleRemote or not collectRemote then return end
+
+    -- cari UI bar + zona hijau di PlayerGui
+    local bar, zone
+    for _, gui in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
+        if gui:IsA("GuiObject") then
+            local n = gui.Name:lower()
+            if not bar and (n:find("bar") or n:find("indicator") or n:find("progress")) then
+                bar = gui
+            end
+            if not zone and (n:find("green") or n:find("target") or n:find("perfect")) then
+                zone = gui
+            end
+        end
+    end
+    if not bar or not zone then return end
+
+    -- cek apakah bar sudah overlap sama zona hijau
+    local function rect(obj)
+        return obj.AbsolutePosition.X, obj.AbsolutePosition.Y,
+               obj.AbsolutePosition.X + obj.AbsoluteSize.X,
+               obj.AbsolutePosition.Y + obj.AbsoluteSize.Y
+    end
+    local ax1, ay1, ax2, ay2 = rect(bar)
+    local bx1, by1, bx2, by2 = rect(zone)
+    local overlap = not (ax2 < bx1 or bx2 < ax1 or ay2 < by1 or by2 < ay1)
+
+    if overlap then
+        -- langsung lepas + kirim collect(1) untuk Perfect
+        pcall(function() toggleRemote:FireServer(false) end)
+        pcall(function() collectRemote:InvokeServer(1) end)
+    end
+end)
+
 -- TAB 3: Auto Sell 💰
 local TabSell = Window:CreateTab("Auto Sell 💰")
 
