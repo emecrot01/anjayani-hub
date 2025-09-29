@@ -30,7 +30,7 @@ local TabHome = Window:CreateTab("🏠 Home")
 TabHome:CreateLabel("Fish It🐟 v1 Remake")
 TabHome:CreateSection("📜 Changelog")
 TabHome:CreateParagraph({
-    Title = "Fish It🐟 v1",
+    Title = "Fish It🐟 v1 Remake",
     Content = [[
 📢 Fitur Yang Tersedia:
 - Auto Farm 🐟
@@ -44,11 +44,7 @@ TabHome:CreateParagraph({
 - Utility 
 ( Walk Speed, Jump Boost, Inf Jump, Inf Oxygen, Show Coordinate, Flying Followed Platform)
  
-🔔 Fitur Baru
-- Freeze System Di Beberapa Area Grinding
-- Auto Equip Rod Saat Auto Fishing Dinyalakan 
- 
-🔀 Changed
+🚨 Updates
 - Ada Beberapa Pembaruan Untuk Fitur Fitur Script Dan Memperbaiki Beberapa BUG
     ]]
 })
