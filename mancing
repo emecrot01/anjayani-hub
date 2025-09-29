@@ -89,8 +89,8 @@ local Net = ReplicatedStorage.Packages["_Index"]["sleitnick_net@0.2.0"].net
 local grindLocations = {
     {
         Name = "Money Farm 💰",
-        Pos = Vector3.new(-642, 30, 114),
-        LookAt = Vector3.new(-734, 30, 74)
+        Pos = Vector3.new(-631, 36, 107),
+        LookAt = Vector3.new(-677, 36, 18)
     },
     {
         Name = "Enchant Stone Farm 🔮",
@@ -228,7 +228,7 @@ local function autoSellCheck()
 end
 
 local function fishSlow()
-    task.wait(1)
+    task.wait(2)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
         task.wait(0.5)
@@ -241,25 +241,25 @@ local function fishSlow()
         currentFishCount = currentFishCount + 1
         autoSellCheck()
 
-        task.wait(0.2)
+        task.wait(0.3)
     end
 end
 
 local function fishFast()
-    task.wait(1)
+    task.wait(3)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
-        task.wait(0.01)
+        task.wait(0.05)
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(0.45 + math.random() * 0.15)
+        task.wait(0.65 + math.random() * 0.15)
         Net["RE/FishingCompleted"]:FireServer()
-        task.wait(0.1 + math.random() * 0.2)
+        task.wait(0.3 + math.random() * 0.2)
         Net["RE/FishingCompleted"]:FireServer()
 
         currentFishCount = currentFishCount + 1
         autoSellCheck()
 
-        task.wait(0.15)
+        task.wait(0.1)
     end
 end
 
