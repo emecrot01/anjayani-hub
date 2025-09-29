@@ -83,7 +83,6 @@ local TabFarm = Window:CreateTab("Auto Farm ⛏️")
 
 -- // Services
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 
@@ -94,8 +93,8 @@ local function Humanoid() local c=character() return c and c:FindFirstChildOfCla
 
 -- // State
 local savedSandCF, savedWaterCF = nil, nil
-local movementMethod = "Walk 👟"
 local autoFarm, autoHelper = false, false
+local defaultWalkSpeed = 16
 
 -- // Utils
 local function notify(title, content, dur)
@@ -143,26 +142,15 @@ local function callRemote(remote, ...)
     return ok and true or false
 end
 
--- // Movement
+-- // Movement (Walk only)
 local function moveTo(cf)
-    local hrp, hum = HRP(), Humanoid()
-    if not hrp or not hum or not cf then return end
-
-    if movementMethod=="Walk 👟" then  
-        hum:MoveTo(cf.Position)  
-        local done, conn=false
-        conn=hum.MoveToFinished:Connect(function() done=true conn:Disconnect() end)  
-        local t0=tick()  
-        while not done and tick()-t0<8 do randDelay(0.1,0.25) end  
-
-    elseif movementMethod=="Smooth Teleport ⚡" then  
-        local tw=TweenService:Create(hrp, TweenInfo.new(math.random(5,10)/10), {CFrame=cf})  
-        tw:Play() tw.Completed:Wait()  
-
-    else -- Instant Teleport ⚡⚡
-        hrp.CFrame=cf  
-        randDelay(0.6,1.2)  
-    end
+    local hum = Humanoid()
+    if not hum or not cf then return end
+    hum:MoveTo(cf.Position)
+    local done, conn=false
+    conn=hum.MoveToFinished:Connect(function() done=true conn:Disconnect() end)
+    local t0=tick()
+    while not done and tick()-t0<8 do randDelay(0.1,0.25) end
 end
 
 -- // Farm Helpers
@@ -223,54 +211,54 @@ TabFarm:CreateButton({
     end
 })
 
-TabFarm:CreateDropdown({
-    Name="Movement 👟",
-    Options={"Walk 👟","Smooth Teleport ⚡","Instant Teleport ⚡️⚡️"},
-    CurrentOption={"Walk 👟"},
-    Callback=function(opt)
-        movementMethod=(type(opt)=="table" and opt[1]) or opt
-        notify("Pergerakan 👟","Now: "..movementMethod)
-    end
-})
-
--- 🔥 Auto Farm dengan logika 1–5
+-- 🔥 Auto Farm
 TabFarm:CreateToggle({
     Name="Auto Farm",
     CurrentValue=false,
     Callback=function(state)
         autoFarm=state
+        local hum = Humanoid()
+        if hum then
+            if state then
+                defaultWalkSpeed = hum.WalkSpeed
+            else
+                hum.WalkSpeed = defaultWalkSpeed
+            end
+        end
+
         if not state then
             notify("Auto Farm","Stopped ❌")
             return
         end
         notify("Auto Farm","Started ✅")
 
+        -- 🔥 loop utama farming dengan urutan baru
         task.spawn(function()
             while autoFarm do
+                -- 1. Set WalkSpeed = 26 di awal loop
+                local hum = Humanoid()
+                if hum then hum.WalkSpeed = 26 end  
+
                 if not savedSandCF or not savedWaterCF then
                     task.wait(0.5)
                 else
                     local tool, cap=getTool(), getCapacity()
                     local fill=getFill(tool)
                     if tool and cap and fill then
-                        -- 1. Gali di Sand
+                        -- 2. Gali di Sand
                         if fill<cap then
                             moveTo(savedSandCF)
                             digUntilFull()
-                        -- 2. Trigger Pan di Water
+
+                        -- 3. Ke Water
                         elseif fill>=cap then
                             moveTo(savedWaterCF)
                             if ensurePanStarted(getTool(),15,0.08) then
-                                -- 3. Shake sambil balik ke Sand
-                                local shaking=true
-                                task.spawn(function()
-                                    shakeLoop()
-                                    shaking=false
-                                end)
-
+                                -- 4. Shake sambil balik ke Sand
+                                task.spawn(shakeLoop)
                                 moveTo(savedSandCF)
 
-                                -- 4. Kalau Shake masih jalan, tunggu selesai
+                                -- 5. Tunggu Shake selesai
                                 while autoFarm and panIsActive() do
                                     local _,_,shake=getRemotes(getTool())
                                     if shake then callRemote(shake) end
