@@ -27,18 +27,22 @@ local Window = Rayfield:CreateWindow({
 
 -- ====== Home 🏠 ======
 local TabHome = Window:CreateTab("🏠 Home")
-TabHome:CreateLabel("Fish It🐟 v2")
+TabHome:CreateLabel("Fish It🐟 v1 Remake")
 TabHome:CreateSection("📜 Changelog")
 TabHome:CreateParagraph({
-    Title = "Fish It🐟 v2",
+    Title = "Fish It🐟 v1",
     Content = [[
 📢 Fitur Yang Tersedia:
-- Auto Fishing 🎣
-- Auto Freeze Area Farm (🐙,💰,🔮)
-- Auto Sell 💰
-- Teleport 🏝️
-- Weather Shop 🏪🔆
-- Utility ⚙️
+- Auto Farm 🐟
+(Auto TP Grind Area, Auto Fishing, Auto Sell)
+- Teleport ✈️⚡
+(Island TP, Event Teleport)
+- Boat Spawn ⛵
+(Select Boat, Spawn Button, Despawn Button)
+- Shop 🏪
+(Only Weather For Now)
+- Utility 
+( Walk Speed, Jump Boost, Inf Jump, Inf Oxygen, Show Coordinate, Flying Followed Platform)
  
 🔔 Fitur Baru
 - Freeze System Di Beberapa Area Grinding
@@ -89,8 +93,8 @@ local Net = ReplicatedStorage.Packages["_Index"]["sleitnick_net@0.2.0"].net
 local grindLocations = {
     {
         Name = "Money Farm 💰",
-        Pos = Vector3.new(-630, 55, 197),
-        LookAt = Vector3.new(-721, 55, 155)
+        Pos = Vector3.new(-631, 56, 99),
+        LookAt = Vector3.new(-624, 56, 199)
     },
     {
         Name = "Enchant Stone Farm 🔮",
@@ -241,7 +245,7 @@ local function fishSlow()
         currentFishCount = currentFishCount + 1
         autoSellCheck()
 
-        task.wait(0.15)
+        task.wait(0.2)
     end
 end
 
@@ -249,9 +253,9 @@ local function fishFast()
     task.wait(2)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
-        task.wait(0.01)
+        task.wait(0.05)
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(0.5 + math.random() * 0.15)
+        task.wait(0.45 + math.random() * 0.15)
         Net["RE/FishingCompleted"]:FireServer()
         task.wait(0.1 + math.random() * 0.2)
         Net["RE/FishingCompleted"]:FireServer()
@@ -259,7 +263,7 @@ local function fishFast()
         currentFishCount = currentFishCount + 1
         autoSellCheck()
 
-        task.wait(0.12)
+        task.wait(0.15)
     end
 end
 
