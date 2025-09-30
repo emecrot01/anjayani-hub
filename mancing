@@ -27,10 +27,10 @@ local Window = Rayfield:CreateWindow({
 
 -- ====== Home 🏠 ======
 local TabHome = Window:CreateTab("🏠 Home")
-TabHome:CreateLabel("Fish It🐟 v1 Remake")
+TabHome:CreateLabel("Fish It🐟 v1.5 Remake")
 TabHome:CreateSection("📜 Changelog")
 TabHome:CreateParagraph({
-    Title = "Fish It🐟 v1 Remake",
+    Title = "Fish It🐟 v1.5 Remake",
     Content = [[
 📢 Fitur Yang Tersedia:
 - Auto Farm 🐟
@@ -46,6 +46,10 @@ TabHome:CreateParagraph({
  
 🚨 Updates
 - Ada Beberapa Pembaruan Untuk Fitur Fitur Script Dan Memperbaiki Beberapa BUG
+- Ada 3 Tipe Kecepatan Auto Fishing (Slow, Fast, Fast+)
+Slow (Support Semua Rod)
+Fast (Support Steampunk++)
+Fast+ (Ares++, Wajib Menggunakan Enchantment Reeler/Empower)
     ]]
 })
 TabHome:CreateSection("👥 Credits")
@@ -233,43 +237,60 @@ local function fishSlow()
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
         task.wait(0.5)
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(4 + math.random() * 2)
+        task.wait(4 + math.random() * 3)
         Net["RE/FishingCompleted"]:FireServer()
         task.wait(0.5 + math.random() * 0.2)
         Net["RE/FishingCompleted"]:FireServer()
 
         currentFishCount = currentFishCount + 1
         autoSellCheck()
-
         task.wait(0.3)
     end
 end
 
 local function fishFast()
-    task.wait(3)
+    task.wait(2.5)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
         task.wait(0.05)
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(0.65 + math.random() * 0.15)
+        task.wait(0.65 + math.random() * 0.25)
         Net["RE/FishingCompleted"]:FireServer()
         task.wait(0.3 + math.random() * 0.2)
         Net["RE/FishingCompleted"]:FireServer()
 
         currentFishCount = currentFishCount + 1
         autoSellCheck()
-
         task.wait(0.1)
     end
 end
 
+local function fishFastPlus()
+    task.wait(3)
+    while running do
+        Net["RF/ChargeFishingRod"]:InvokeServer(tick())
+        task.wait(0.01)
+        Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
+        task.wait(0.45 + math.random() * 0.15)
+        Net["RE/FishingCompleted"]:FireServer()
+        task.wait(0.2 + math.random() * 0.1)
+        Net["RE/FishingCompleted"]:FireServer()
+
+        currentFishCount = currentFishCount + 1
+        autoSellCheck()
+        task.wait(0.05)
+    end
+end
+
+-- Equip Rod
 local function equipRod()
     Net["RE/EquipToolFromHotbar"]:FireServer(1)
 end
 
+-- Dropdown Pilihan Mode
 TabFarm:CreateDropdown({
     Name = "Select Mode 🎛️",
-    Options = {"Slow", "Fast"},
+    Options = {"Slow 🐌", "Fast ⚡", "Fast+ ⚡⚡ (need Empower/Reeler)"},
     CurrentOption = {},
     Callback = function(Option)
         selectedMode = type(Option) == "table" and Option[1] or Option
@@ -283,6 +304,7 @@ TabFarm:CreateDropdown({
     end
 })
 
+-- Toggle Auto Fishing
 TabFarm:CreateToggle({
     Name = "Auto Fishing 🐟",
     CurrentValue = false,
@@ -299,10 +321,12 @@ TabFarm:CreateToggle({
                 return
             end
             equipRod()
-            if selectedMode == "Slow" then
+            if selectedMode == "Slow 🐌" then
                 task.spawn(fishSlow)
-            else
+            elseif selectedMode == "Fast ⚡" then
                 task.spawn(fishFast)
+            elseif selectedMode == "Fast+ ⚡⚡ (need Empower/Reeler)" then
+                task.spawn(fishFastPlus)
             end
             Rayfield:Notify({
                 Title = "Auto Fishing 🎣",
