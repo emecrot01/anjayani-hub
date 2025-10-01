@@ -18,32 +18,27 @@ local Window = Rayfield:CreateWindow({
  
 -- TAB 1: Home 🏠
 local TabHome = Window:CreateTab("Home 🏠")
-TabHome:CreateLabel("Prospecting! 💎 v1.6.4")
+TabHome:CreateLabel("Prospecting! 💎 v1 Remake")
 TabHome:CreateSection("Changelog")
 TabHome:CreateParagraph({
-    Title = "Prospecting! 💎 v1.6.4",
+    Title = "Prospecting! 💎 v1 Remake",
     Content = [[
 🎉 Fitur Yang Tersedia:
-• Auto Farm ⛏️
-  Save Sand ⛱️/Water 🌊 Position
-• Walk System 👟
-  Pilih Salah Satu (Walk 👟/Smooth Teleport ⚡️/Instant Teleport ⚡️⚡️)
-• Auto Farming (Toggle) ⛏️
-  Tinggal Aktifin Doang 🗿
-• Auto Collect + Shake ⛏️💧
-  Kalo lu Pen Gali + Pan Doang, aktifin ini🗿
-• Auto Sell 💰 
-  Sistem Sell Sudah Di Buat Per Rarity (Toggle) + Support Sell Anywhere Gamepass 
-• Auto Favorite 🌟
-  Sistem Sama Seperti Sell (Toggle) + Unlock All 🔓
-• TP Traveling Merchant 
-  (Hany Bisa TP Ke Merchant Jika Berada Di Pulau Yang Sama)
-• Enchant Anywhere 
-  Ga Perlu Lagi Ke Altar Buat Enchant, Cukup Tekan Tombol Ini Saja Sudah Cukup (Selama Ada Aurorite/Aetherite)
-• Reforging saja 
-  Ga Perlu Nanya Bapack Bapack Alomani Itu lagi🗿
-• Walkspeed & Jumpboost NEW
-  Kecepatan Memulung Geode🗿
+• Auto Farm
+Save Position 📍
+-Save Sand 🏝️
+-Save Water 🌊
+-Auto Farm ⛏️
+-Auto Collect + Shake ⛏️💧
+-Perfect HIT ⛏️💥
+• Auto Sell
+Auto Sell All Ore By Rarity 💰 (Active Kan Toggle Ore Mana Yang Mau Di Jual)
+• Auto Lock Ore By Rarity 🔒 (Active Kan Toggle Ore Mana Yang Mau Di Lock)
+• Misc
+Enchant Pan Anywhere 🔮
+TP Traveling Merchant 🛒
+Reforge Anywhere 🔧
+Walk Speed 👟⚡(Max 100)
 
 🛠️ Fixed
 • Shake Sambil Berjalan (Saat Melakukan Shake, Karakter Akan Kembali Ke Area Penggalian Dan Melakukan Shake Disana)
@@ -83,6 +78,7 @@ local TabFarm = Window:CreateTab("Auto Farm ⛏️")
 
 -- // Services
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 
@@ -94,7 +90,7 @@ local function Humanoid() local c=character() return c and c:FindFirstChildOfCla
 -- // State
 local savedSandCF, savedWaterCF = nil, nil
 local autoFarm, autoHelper = false, false
-local defaultWalkSpeed = 16
+local autoFarmWalkSpeed = 26 -- WalkSpeed tetap
 
 -- // Utils
 local function notify(title, content, dur)
@@ -142,7 +138,7 @@ local function callRemote(remote, ...)
     return ok and true or false
 end
 
--- // Movement (Walk only)
+-- // Movement
 local function moveTo(cf)
     local hum = Humanoid()
     if not hum or not cf then return end
@@ -179,13 +175,12 @@ local function digUntilFull()
 
         local collect=select(1,getRemotes(tool))
         if collect then callRemote(collect,1) end
-        randDelay(0.08,0.2) -- dig
+        randDelay(0.08,0.2)
     end
 
     VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
 end
 
--- 🔥 Shake lebih cepat
 local function shakeLoop()
     while autoFarm and panIsActive() do
         local _,_,shake=getRemotes(getTool())
@@ -211,54 +206,44 @@ TabFarm:CreateButton({
     end
 })
 
--- 🔥 Auto Farm
+-- 🔥 Auto Farm Toggle
 TabFarm:CreateToggle({
-    Name="Auto Farm",
+    Name="Auto Farm ⛏️",
     CurrentValue=false,
     Callback=function(state)
         autoFarm=state
-        local hum = Humanoid()
-        if hum then
-            if state then
-                defaultWalkSpeed = hum.WalkSpeed
-            else
-                hum.WalkSpeed = defaultWalkSpeed
-            end
-        end
-
         if not state then
             notify("Auto Farm","Stopped ❌")
             return
         end
         notify("Auto Farm","Started ✅")
 
-        -- 🔥 loop utama farming dengan urutan baru
+        -- Loop cepat untuk jaga WalkSpeed 26
         task.spawn(function()
             while autoFarm do
-                -- 1. Set WalkSpeed = 26 di awal loop
                 local hum = Humanoid()
-                if hum then hum.WalkSpeed = 26 end  
+                if hum then hum.WalkSpeed = autoFarmWalkSpeed end
+                task.wait(0.05)
+            end
+        end)
 
+        -- Loop utama farming
+        task.spawn(function()
+            while autoFarm do
                 if not savedSandCF or not savedWaterCF then
                     task.wait(0.5)
                 else
                     local tool, cap=getTool(), getCapacity()
                     local fill=getFill(tool)
                     if tool and cap and fill then
-                        -- 2. Gali di Sand
                         if fill<cap then
                             moveTo(savedSandCF)
                             digUntilFull()
-
-                        -- 3. Ke Water
                         elseif fill>=cap then
                             moveTo(savedWaterCF)
                             if ensurePanStarted(getTool(),15,0.08) then
-                                -- 4. Shake sambil balik ke Sand
                                 task.spawn(shakeLoop)
                                 moveTo(savedSandCF)
-
-                                -- 5. Tunggu Shake selesai
                                 while autoFarm and panIsActive() do
                                     local _,_,shake=getRemotes(getTool())
                                     if shake then callRemote(shake) end
@@ -274,7 +259,7 @@ TabFarm:CreateToggle({
     end
 })
 
--- Helper toggle tetap sama
+-- Helper toggle
 TabFarm:CreateToggle({
     Name="Auto Collect + Shake ⛏️💧",
     CurrentValue=false,
@@ -314,6 +299,91 @@ TabFarm:CreateToggle({
         end)
     end
 })
+
+-- === Perfect Hit (Independen, Tap Hold) ===
+local TabPerfectHit = TabFarm -- letakkan di bawah Auto Collect + Shake
+
+local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Ambil DigBar
+local function getDigBar()
+    local ok, dig = pcall(function()
+        return PlayerGui:WaitForChild("ToolUI"):WaitForChild("DigBar")
+    end)
+    return ok and dig or nil
+end
+
+local DigBar = getDigBar()
+local PerfectHitEnabled = false
+local Padding = 2
+
+-- Helper untuk cek tengah bar di dalam GradientFrame
+local function checkCenterHit(bar, frame, pad)
+    local barPos, barSize = bar.AbsolutePosition, bar.AbsoluteSize
+    local framePos, frameSize = frame.AbsolutePosition, frame.AbsoluteSize
+
+    local barCenterX = barPos.X + (barSize.X / 2)
+    local barCenterY = barPos.Y + (barSize.Y / 2)
+
+    local fLeft   = framePos.X - pad
+    local fRight  = framePos.X + frameSize.X + pad
+    local fTop    = framePos.Y - pad
+    local fBottom = framePos.Y + frameSize.Y + pad
+
+    return (barCenterX >= fLeft and barCenterX <= fRight) and
+           (barCenterY >= fTop and barCenterY <= fBottom)
+end
+
+local function pressMouse()
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+end
+
+local function releaseMouse()
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+end
+
+-- Toggle Perfect Hit
+TabPerfectHit:CreateToggle({
+    Name = "Perfect HIT ⛏️💥",
+    CurrentValue = false,
+    Flag = "PerfectHitToggle",
+    Callback = function(Value)
+        PerfectHitEnabled = Value
+        if PerfectHitEnabled and (not DigBar or not DigBar.Parent) then
+            DigBar = getDigBar()
+        end
+        if not PerfectHitEnabled then
+            releaseMouse()
+        end
+    end
+})
+
+-- Loop utama Perfect Hit
+RunService.RenderStepped:Connect(function()
+    if not PerfectHitEnabled then return end
+    if not DigBar or not DigBar.Parent then
+        DigBar = getDigBar()
+        if not DigBar then return end
+    end
+    if not DigBar.Visible then return end
+
+    local bar = DigBar:FindFirstChild("Line")
+    local frame = DigBar:FindFirstChild("GradientFrame")
+    if not bar or not frame then return end
+
+    local isHitting = checkCenterHit(bar, frame, Padding)
+
+    if isHitting then
+        -- Tap Hold sudah ditekan manual, cuma spam ketika berada di GradientFrame
+        pressMouse()
+        task.wait(0.001)
+        releaseMouse()
+    else
+        releaseMouse()
+    end
+end)
 
 -- TAB 3: Auto Sell 💰
 local TabSell = Window:CreateTab("Auto Sell 💰")
@@ -599,7 +669,7 @@ TabLock:CreateButton({
 
 -- 🛠️ TAB: Misc 
 local TabMisc = Window:CreateTab("Misc 🛠️")
-
+ 
 -- Services
 local Players = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -607,16 +677,16 @@ local LocalPlayer = Players.LocalPlayer
 local BackpackTwo = LocalPlayer:WaitForChild("BackpackTwo")
 local VirtualUser = game:GetService("VirtualUser")
 local VirtualInputManager = game:GetService("VirtualInputManager")
-
+ 
 -- Humanoid detect + simpan default game
 local humanoid = LocalPlayer.Character and LocalPlayer.Character:WaitForChild("Humanoid")
 local DefaultWalkSpeed = humanoid and humanoid.WalkSpeed or 16
-
+ 
 LocalPlayer.CharacterAdded:Connect(function(char)
     humanoid = char:WaitForChild("Humanoid")
     DefaultWalkSpeed = humanoid.WalkSpeed
 end)
-
+ 
 -- 🔮 Enchant Pan Anywhere
 TabMisc:CreateButton({
     Name = "Enchant Pan 🔮",
@@ -632,7 +702,7 @@ TabMisc:CreateButton({
         end
     end,
 })
-
+ 
 -- 👨‍💼 TP To Merchant
 TabMisc:CreateButton({
     Name = "TP Traveling Merchant 🛒",
@@ -645,7 +715,7 @@ TabMisc:CreateButton({
         end
     end,
 })
-
+ 
 -- 🔧 Reforge Anywhere
 TabMisc:CreateButton({
     Name = "Reforge Anywhere 🔧",
