@@ -1084,93 +1084,98 @@ TabUtility:CreateToggle({
     end
 })
 
--- ===== Ultra Low Texture Mode (Fix) 🟦 =====
+-- ===== Ultra Low Texture Scanner (Auto Update) =====
 local ultraLowEnabled = false
 local savedStates = {}
+local scanConnection = nil
 
-local function safeSet(obj, prop, value)
-    pcall(function()
-        obj[prop] = value
-    end)
+-- Simpan property dengan aman
+local function saveState(obj, prop, value)
+    if not savedStates[obj] then savedStates[obj] = {} end
+    if savedStates[obj][prop] == nil then
+        savedStates[obj][prop] = value
+    end
 end
 
+-- Terapkan ultra low
 local function applyUltraLow(obj)
     if obj:IsA("Decal") or obj:IsA("Texture") then
-        if not savedStates[obj] then
-            savedStates[obj] = {Type="Decal", Transparency=obj.Transparency}
-        end
-        safeSet(obj, "Transparency", 1)
+        saveState(obj, "Transparency", obj.Transparency)
+        pcall(function() obj.Transparency = 1 end)
+
     elseif obj:IsA("MeshPart") then
-        if not savedStates[obj] then
-            savedStates[obj] = {Type="MeshPart", TextureID=obj.TextureID, Material=obj.Material}
-        end
-        safeSet(obj, "TextureID", "")
-        safeSet(obj, "Material", Enum.Material.Plastic)
+        saveState(obj, "TextureID", obj.TextureID)
+        saveState(obj, "Material", obj.Material)
+        pcall(function() obj.TextureID = "" end)
+        pcall(function() obj.Material = Enum.Material.Plastic end)
+
     elseif obj:IsA("SpecialMesh") or obj:IsA("Mesh") then
-        if not savedStates[obj] then
-            savedStates[obj] = {Type="Mesh", TextureID=obj.TextureId}
-        end
-        safeSet(obj, "TextureId", "")
+        saveState(obj, "TextureId", obj.TextureId)
+        pcall(function() obj.TextureId = "" end)
+
     elseif obj:IsA("BasePart") then
-        if not savedStates[obj] then
-            savedStates[obj] = {Type="Part", Material=obj.Material}
-        end
-        safeSet(obj, "Material", Enum.Material.Plastic)
+        saveState(obj, "Material", obj.Material)
+        pcall(function() obj.Material = Enum.Material.Plastic end)
     end
 end
 
+-- Restore state
 local function restoreUltraLow(obj)
-    local state = savedStates[obj]
-    if not state then return end
-
-    if state.Type == "Decal" then
-        safeSet(obj, "Transparency", state.Transparency)
-    elseif state.Type == "MeshPart" then
-        safeSet(obj, "TextureID", state.TextureID)
-        safeSet(obj, "Material", state.Material)
-    elseif state.Type == "Mesh" then
-        safeSet(obj, "TextureId", state.TextureID)
-    elseif state.Type == "Part" then
-        safeSet(obj, "Material", state.Material)
+    if savedStates[obj] then
+        for prop, val in pairs(savedStates[obj]) do
+            if obj and obj.Parent ~= nil then
+                pcall(function() obj[prop] = val end)
+            end
+        end
+        savedStates[obj] = nil
     end
-
-    savedStates[obj] = nil
 end
 
+-- Aktifkan/Nonaktifkan Scanner
 local function setUltraLowMode(enable)
     ultraLowEnabled = enable
     if enable then
-        -- apply semua
+        -- Apply langsung ke semua object yang sudah ada
         for _, obj in ipairs(workspace:GetDescendants()) do
             applyUltraLow(obj)
         end
-        -- pantau object baru
-        workspace.DescendantAdded:Connect(function(obj)
+
+        -- Auto-scan untuk object baru / update lokasi
+        scanConnection = workspace.DescendantAdded:Connect(function(obj)
             if ultraLowEnabled then
                 applyUltraLow(obj)
             end
         end)
+
         Rayfield:Notify({
-            Title = "Ultra Low Texture",
-            Content = "Mode polos aktif ✅",
-            Duration = 2
+            Title = "Ultra Low Scanner",
+            Content = "Scanner aktif ✅ (otomatis deteksi texture)",
+            Duration = 3
         })
     else
-        -- restore semua
+        -- Matikan scanner
+        if scanConnection then
+            scanConnection:Disconnect()
+            scanConnection = nil
+        end
+
+        -- Kembalikan semua object
         for obj, _ in pairs(savedStates) do
             restoreUltraLow(obj)
         end
         savedStates = {}
+
         Rayfield:Notify({
-            Title = "Ultra Low Texture",
-            Content = "Kembali normal ❌",
-            Duration = 2
+            Title = "Ultra Low Scanner",
+            Content = "Scanner nonaktif ❌ (kembali normal)",
+            Duration = 3
         })
     end
 end
 
+-- Toggle UI
 TabUtility:CreateToggle({
-    Name = "Ultra Low Texture 🟦",
+    Name = "Ultra Low Scanner 🟦",
     CurrentValue = false,
     Callback = function(Value)
         setUltraLowMode(Value)
