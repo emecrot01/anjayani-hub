@@ -278,7 +278,7 @@ local function fishFastPlus()
 
         currentFishCount = currentFishCount + 1
         autoSellCheck()
-        task.wait(0.25)
+        task.wait(0.3)
     end
 end
 
