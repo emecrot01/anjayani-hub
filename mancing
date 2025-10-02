@@ -1083,3 +1083,85 @@ TabUtility:CreateToggle({
         end
     end
 })
+
+-- ===== Ultra Low Texture Mode 🟦 =====
+local ultraLowEnabled = false
+local savedStates = {}
+
+local function applyUltraLow(obj)
+    -- Simpan state asli kalau belum ada
+    if savedStates[obj] == nil then
+        if obj:IsA("Texture") or obj:IsA("Decal") then
+            savedStates[obj] = {Type="Decal", Transparency=obj.Transparency}
+            obj.Transparency = 1
+        elseif obj:IsA("MeshPart") or obj:IsA("SpecialMesh") or obj:IsA("Mesh") then
+            savedStates[obj] = {Type="Mesh", TextureID=obj.TextureID}
+            obj.TextureID = ""
+        elseif obj:IsA("BasePart") then
+            savedStates[obj] = {Type="Part", Material=obj.Material}
+            obj.Material = Enum.Material.Plastic
+        end
+    else
+        -- Kalau state sudah tersimpan, langsung timpa
+        if obj:IsA("Decal") or obj:IsA("Texture") then
+            obj.Transparency = 1
+        elseif obj:IsA("MeshPart") or obj:IsA("SpecialMesh") or obj:IsA("Mesh") then
+            obj.TextureID = ""
+        elseif obj:IsA("BasePart") then
+            obj.Material = Enum.Material.Plastic
+        end
+    end
+end
+
+local function restoreUltraLow(obj)
+    local state = savedStates[obj]
+    if state then
+        if state.Type == "Decal" then
+            obj.Transparency = state.Transparency
+        elseif state.Type == "Mesh" then
+            obj.TextureID = state.TextureID
+        elseif state.Type == "Part" then
+            obj.Material = state.Material
+        end
+        savedStates[obj] = nil
+    end
+end
+
+local function setUltraLowMode(enable)
+    ultraLowEnabled = enable
+    if enable then
+        -- Hapus semua texture + paksa Plastic
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            applyUltraLow(obj)
+        end
+        workspace.DescendantAdded:Connect(function(obj)
+            if ultraLowEnabled then
+                applyUltraLow(obj)
+            end
+        end)
+        Rayfield:Notify({
+            Title = "Ultra Low Texture",
+            Content = "Mode super polos aktif ✅",
+            Duration = 2
+        })
+    else
+        -- Balikin semua state
+        for obj, _ in pairs(savedStates) do
+            restoreUltraLow(obj)
+        end
+        savedStates = {}
+        Rayfield:Notify({
+            Title = "Ultra Low Texture",
+            Content = "Semua texture & material dikembalikan ❌",
+            Duration = 2
+        })
+    end
+end
+
+TabUtility:CreateToggle({
+    Name = "Ultra Low Texture 🟦",
+    CurrentValue = false,
+    Callback = function(Value)
+        setUltraLowMode(Value)
+    end
+})
