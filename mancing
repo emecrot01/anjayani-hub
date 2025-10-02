@@ -1084,56 +1084,67 @@ TabUtility:CreateToggle({
     end
 })
 
--- ===== Ultra Low Texture Mode 🟦 =====
+-- ===== Ultra Low Texture Mode (Fix) 🟦 =====
 local ultraLowEnabled = false
 local savedStates = {}
 
+local function safeSet(obj, prop, value)
+    pcall(function()
+        obj[prop] = value
+    end)
+end
+
 local function applyUltraLow(obj)
-    -- Simpan state asli kalau belum ada
-    if savedStates[obj] == nil then
-        if obj:IsA("Texture") or obj:IsA("Decal") then
+    if obj:IsA("Decal") or obj:IsA("Texture") then
+        if not savedStates[obj] then
             savedStates[obj] = {Type="Decal", Transparency=obj.Transparency}
-            obj.Transparency = 1
-        elseif obj:IsA("MeshPart") or obj:IsA("SpecialMesh") or obj:IsA("Mesh") then
-            savedStates[obj] = {Type="Mesh", TextureID=obj.TextureID}
-            obj.TextureID = ""
-        elseif obj:IsA("BasePart") then
+        end
+        safeSet(obj, "Transparency", 1)
+    elseif obj:IsA("MeshPart") then
+        if not savedStates[obj] then
+            savedStates[obj] = {Type="MeshPart", TextureID=obj.TextureID, Material=obj.Material}
+        end
+        safeSet(obj, "TextureID", "")
+        safeSet(obj, "Material", Enum.Material.Plastic)
+    elseif obj:IsA("SpecialMesh") or obj:IsA("Mesh") then
+        if not savedStates[obj] then
+            savedStates[obj] = {Type="Mesh", TextureID=obj.TextureId}
+        end
+        safeSet(obj, "TextureId", "")
+    elseif obj:IsA("BasePart") then
+        if not savedStates[obj] then
             savedStates[obj] = {Type="Part", Material=obj.Material}
-            obj.Material = Enum.Material.Plastic
         end
-    else
-        -- Kalau state sudah tersimpan, langsung timpa
-        if obj:IsA("Decal") or obj:IsA("Texture") then
-            obj.Transparency = 1
-        elseif obj:IsA("MeshPart") or obj:IsA("SpecialMesh") or obj:IsA("Mesh") then
-            obj.TextureID = ""
-        elseif obj:IsA("BasePart") then
-            obj.Material = Enum.Material.Plastic
-        end
+        safeSet(obj, "Material", Enum.Material.Plastic)
     end
 end
 
 local function restoreUltraLow(obj)
     local state = savedStates[obj]
-    if state then
-        if state.Type == "Decal" then
-            obj.Transparency = state.Transparency
-        elseif state.Type == "Mesh" then
-            obj.TextureID = state.TextureID
-        elseif state.Type == "Part" then
-            obj.Material = state.Material
-        end
-        savedStates[obj] = nil
+    if not state then return end
+
+    if state.Type == "Decal" then
+        safeSet(obj, "Transparency", state.Transparency)
+    elseif state.Type == "MeshPart" then
+        safeSet(obj, "TextureID", state.TextureID)
+        safeSet(obj, "Material", state.Material)
+    elseif state.Type == "Mesh" then
+        safeSet(obj, "TextureId", state.TextureID)
+    elseif state.Type == "Part" then
+        safeSet(obj, "Material", state.Material)
     end
+
+    savedStates[obj] = nil
 end
 
 local function setUltraLowMode(enable)
     ultraLowEnabled = enable
     if enable then
-        -- Hapus semua texture + paksa Plastic
+        -- apply semua
         for _, obj in ipairs(workspace:GetDescendants()) do
             applyUltraLow(obj)
         end
+        -- pantau object baru
         workspace.DescendantAdded:Connect(function(obj)
             if ultraLowEnabled then
                 applyUltraLow(obj)
@@ -1141,18 +1152,18 @@ local function setUltraLowMode(enable)
         end)
         Rayfield:Notify({
             Title = "Ultra Low Texture",
-            Content = "Mode super polos aktif ✅",
+            Content = "Mode polos aktif ✅",
             Duration = 2
         })
     else
-        -- Balikin semua state
+        -- restore semua
         for obj, _ in pairs(savedStates) do
             restoreUltraLow(obj)
         end
         savedStates = {}
         Rayfield:Notify({
             Title = "Ultra Low Texture",
-            Content = "Semua texture & material dikembalikan ❌",
+            Content = "Kembali normal ❌",
             Duration = 2
         })
     end
