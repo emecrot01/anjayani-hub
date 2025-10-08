@@ -133,7 +133,6 @@ local grindLocations = {
         Name = "Underground Cellar 🕳️🏺",
         Pos = Vector3.new(2136, -91, -695)
         LookAt = Vector3.new(2139, -91, -795)
-    }
 }
 
 local savedGrind = nil      
