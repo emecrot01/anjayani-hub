@@ -37,8 +37,6 @@ TabHome:CreateParagraph({
 (Auto TP Grind Area, Auto Fishing, Auto Sell)
 - Teleport ✈️⚡
 (Island TP, Event Teleport)
-- Boat Spawn ⛵
-(Select Boat, Spawn Button, Despawn Button)
 - Shop 🏪
 (Only Weather For Now)
 - Utility 
@@ -733,77 +731,6 @@ task.spawn(function()
         task.wait(5)
     end
 end)
-
--- ====== Boat ⛵ ======
-local TabBoat = Window:CreateTab("Boat ⛵") 
-TabBoat:CreateSection("Spawn Boat 🛶")
-
--- mapping nama -> id
-local boatIdMap = {
-    ["Small Boat"] = 1,
-    ["Kayak"] = 2,
-    ["Jetski"] = 3,
-    ["Highfield Boat"] = 4,
-    ["Speed Boat"] = 5,
-    ["Fishing Boat"] = 6,
-    ["Mini Yacht"] = 14,
-    ["Aura Boat"] = 17,
-    ["Burger Boat"] = 18,
-    ["Mega Hovercraft"] = 19,
-    ["Dinky Fishing Boat"] = 20,
-}
-
-local boatNames = {
-    "Small Boat",
-    "Kayak",
-    "Jetski",
-    "Highfield Boat",
-    "Speed Boat",
-    "Fishing Boat",
-    "Mini Yacht",
-    "Aura Boat",
-    "Burger Boat",
-    "Mega Hovercraft",
-    "Dinky Fishing Boat"
-}
-
-local selectedBoat = nil
-
-TabBoat:CreateDropdown({
-    Name = "Select Boat 🔎",
-    Options = boatNames,
-    CurrentOption = "",
-    MultipleOptions = false,
-    Flag = "BoatDropdown",
-    Callback = function(Value)
-        selectedBoat = Value[1]
-        print("Selected Boat:", selectedBoat, "ID:", boatIdMap[selectedBoat])
-    end,
-})
-
-TabBoat:CreateButton({
-    Name = "Spawn Boat ✅",
-    Callback = function()
-        if not selectedBoat then
-            warn("Pilih boat dulu.")
-            return
-        end
-        local id = boatIdMap[selectedBoat]
-        if not id then
-            warn("Boat ID tidak ditemukan untuk:", selectedBoat)
-            return
-        end
-        print("Spawn Boat:", selectedBoat, "ID:", id)
-        ReplicatedStorage.Packages["_Index"]["sleitnick_net@0.2.0"].net["RF/SpawnBoat"]:InvokeServer(id)
-    end,
-})
-
-TabBoat:CreateButton({
-    Name = "Despawn Boat ⚓",
-    Callback = function()
-        ReplicatedStorage.Packages["_Index"]["sleitnick_net@0.2.0"].net["RF/DespawnBoat"]:InvokeServer()
-    end,
-})
 
 -- ====== Shop 🏪 ======
 local TabShop = Window:CreateTab("Shop 🏪") 
