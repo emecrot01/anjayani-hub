@@ -128,6 +128,11 @@ local grindLocations = {
         Name = "Jungle River 🌴",
         Pos = Vector3.new(1462, 8, -325),
         LookAt = Vector3.new(1561, 8, -307)
+    },
+    {   
+        Name = "Underground Cellar 🕳️🏺",
+        Pos = Vector3.new(2136, -91, -695)
+        LookAt = Vector3.new(2139, -91, -795)
     }
 }
 
