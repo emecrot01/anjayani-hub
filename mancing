@@ -44,12 +44,15 @@ TabHome:CreateParagraph({
 - Utility 
 ( Walk Speed, Jump Boost, Inf Jump, Inf Oxygen, Show Coordinate, Flying Followed Platform)
  
-🚨 Updates
-- Ada Beberapa Pembaruan Untuk Fitur Fitur Script Dan Memperbaiki Beberapa BUG
+📝 Notes
 - Ada 3 Tipe Kecepatan Auto Fishing (Slow, Fast, Fast+)
 Slow (Support Semua Rod)
 Fast (Support Steampunk++)
 Fast+ (Ares++, Wajib Menggunakan Enchantment Reeler/Empower)
+
+🚨 Updates 
+- New Teleport 
+Menambah Lokasi Baru Dan Area Grinding Baru
     ]]
 })
 TabHome:CreateSection("👥 Credits")
@@ -120,6 +123,11 @@ local grindLocations = {
         Name = "Ice Hole 🧊🕳",
         Pos = Vector3.new(2050, 7, 3388),
         LookAt = Vector3.new(2079, 7, 3292)
+    },
+    {
+        Name = "Jungle River 🌴",
+        Pos = Vector3.new(1462, 8, -325),
+        LookAt = Vector3.new(1561, 8, -307)
     }
 }
 
@@ -425,20 +433,22 @@ TabFarm:CreateButton({
 local TabTP = Window:CreateTab("✈️⚡ Teleport")
 
 -- ===== ISLAND TELEPORT =====
-local teleportLocations = {
-    { Name = "Fisherman Island 🎣", Pos = Vector3.new(19.035, 15, 2889.627) },
-    { Name = "Kohana Island 🏝️", Pos = Vector3.new(-642.76, 19, 618.787) },
-    { Name = "Kohana Volcano 🌋", Pos = Vector3.new(-596.92, 64, 105.63) },
-    { Name = "Coral Reefs 🐚", Pos = Vector3.new(-2797.356, 15, 2110.986) },
-    { Name = "Esoteric Island 🏝️ 🌌", Pos = Vector3.new(2025.875, 30, 1392.24) },
-    { Name = "Esoteric Depth 🌌", Pos = Vector3.new(3211.25, -1297, 1412.00) },
-    { Name = "Tropical Grove 🌴", Pos = Vector3.new(-2046.46, 13, 3658.995) },
-    { Name = "Crater Island ⛰️", Pos = Vector3.new(863.528, 40, 4946.208) },
-    { Name = "Weather Machine Island 🕰️", Pos = Vector3.new(-1503.27, 8, 1909.59) },
-    { Name = "Lost Isle (Sisyphus Statue) 🔱", Pos = Vector3.new(-3693.872, -132, -1042.617) },
-    { Name = "Lost Isle (Treasure Hall) 💎", Pos = Vector3.new(-3600.823, -313, -1405.601) },
-    { Name = "Lost Isle (Treasure Room) 🏴‍☠️", Pos = Vector3.new(-3598.215, -280, -1640.74) },
-    { Name = "Snowy Island ❄️", Pos = Vector3.new(1688.66, 8, 3308.29) },
+local teleportLocations = {  
+    { Name = "Fisherman Island 🎣", Pos = Vector3.new(19.035, 15, 2889.627) },  
+    { Name = "Kohana Island 🏝️", Pos = Vector3.new(-642.76, 19, 618.787) },  
+    { Name = "Kohana Volcano 🌋", Pos = Vector3.new(-596.92, 64, 105.63) },  
+    { Name = "Coral Reefs 🐚", Pos = Vector3.new(-2797.356, 15, 2110.986) },  
+    { Name = "Esoteric Island 🏝️ 🌌", Pos = Vector3.new(2025.875, 30, 1392.24) },  
+    { Name = "Esoteric Depth 🌌", Pos = Vector3.new(3211.25, -1297, 1412.00) },  
+    { Name = "Tropical Grove 🌴", Pos = Vector3.new(-2046.46, 13, 3658.995) },  
+    { Name = "Crater Island ⛰️", Pos = Vector3.new(863.528, 40, 4946.208) },  
+    { Name = "Weather Machine Island 🕰️", Pos = Vector3.new(-1503.27, 8, 1909.59) },  
+    { Name = "Lost Isle (Sisyphus Statue) 🔱", Pos = Vector3.new(-3693.872, -132, -1042.617) },  
+    { Name = "Lost Isle (Treasure Hall) 💎", Pos = Vector3.new(-3600.823, -313, -1405.601) },  
+    { Name = "Lost Isle (Treasure Room) 🏴‍☠️", Pos = Vector3.new(-3598.215, -280, -1640.74) },  
+    { Name = "Snowy Island ❄️", Pos = Vector3.new(1688.66, 8, 3308.29) },  
+    { Name = "Ancient Jungle 🏛️🌴", Pos = Vector3.new(1278, 8, -196) },  
+    { Name = "Enchant Altar (Double Enchant)⛩️", Pos = Vector3.new(1481, 128, -588) },  
 }
 
 local selectedIsland = nil
