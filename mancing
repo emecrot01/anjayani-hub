@@ -620,7 +620,7 @@ end
 local function startTeleportLoop()
     if teleportLoopRunning then return end
     teleportLoopRunning = true
-
+ 
     task.spawn(function()
         while autoTeleportEnabled do
             local char = LocalPlayer.Character
@@ -643,7 +643,7 @@ local function startTeleportLoop()
         teleportLoopRunning = false
     end)
 end
-
+ 
 -- ===== UI Event Teleport =====
 TabTP:CreateSection("🌟 Event Teleport 🌟")
 TabTP:CreateDropdown({
@@ -661,7 +661,7 @@ TabTP:CreateDropdown({
         end
     end
 })
-
+ 
 TabTP:CreateToggle({
     Name = "TP To Event ⚡",
     CurrentValue = false,
@@ -690,20 +690,20 @@ TabTP:CreateToggle({
         end
     end
 })
-
+ 
 -- ===== Event Status =====
 TabTP:CreateSection("🌟 Event Status 🌟")
 local eventStatusParagraph = TabTP:CreateParagraph({
     Title = "Event Status",
     Content = "Memeriksa..."
 })
-
+ 
 local function isGhostWormActive()
     local rings = workspace:FindFirstChild("RINGS")
     local props = rings and rings:FindFirstChild("Props")
     local model = props and props:FindFirstChild("Ghost Worm Fish")
     if not model then return false end
-
+ 
     for _, obj in ipairs(model:GetDescendants()) do
         if obj:IsA("TextLabel") and obj.Name == "DisplayName" and obj.Text == "Ghost Worm Fish" then
             return true
@@ -711,7 +711,7 @@ local function isGhostWormActive()
     end
     return false
 end
-
+ 
 local function updateEventStatus()
     local text = ""
     for _, uiName in ipairs(dropdownOptions) do
@@ -724,18 +724,18 @@ local function updateEventStatus()
     end
     eventStatusParagraph:Set({Title="Event Status", Content=text})
 end
-
+ 
 task.spawn(function()
     while true do
         updateEventStatus()
         task.wait(5)
     end
 end)
-
+ 
 -- ====== Shop 🏪 ======
 local TabShop = Window:CreateTab("Shop 🏪") 
 local SectionWeather = TabShop:CreateSection("Weather Shop 🔆")
-
+ 
 local function buyWeather(weatherName, displayName, silent)
     local ok, result = pcall(function()
         return ReplicatedStorage.Packages["_Index"]["sleitnick_net@0.2.0"].net["RF/PurchaseWeatherEvent"]:InvokeServer(weatherName)
@@ -752,7 +752,7 @@ local function buyWeather(weatherName, displayName, silent)
         end
     end
 end
-
+ 
 local weathers = {
     { Name = "Wind 💨 ($10K 💰)", Id = "Wind", Display = "Wind 💨" },
     { Name = "Cloudy ☁️ ($20K 💰)", Id = "Cloudy", Display = "Cloudy ☁️" },
@@ -761,12 +761,12 @@ local weathers = {
     { Name = "Radiant ✨ ($50K 💰)", Id = "Radiant", Display = "Radiant ✨" },
     { Name = "Shark Hunt 🦈 ($300K 💰)", Id = "Shark Hunt", Display = "Shark Hunt 🦈" },
 }
-
+ 
 local weatherNames = {}
 for _, w in ipairs(weathers) do table.insert(weatherNames, w.Name) end
-
+ 
 local selectedWeather = weatherNames[1]
-
+ 
 local DropdownWeather = TabShop:CreateDropdown({
     Name = "Select Weather 🛒",
     Options = weatherNames,
@@ -777,7 +777,7 @@ local DropdownWeather = TabShop:CreateDropdown({
     end,
 })
 pcall(function() DropdownWeather:Set(weatherNames[1]) end)
-
+ 
 TabShop:CreateButton({
     Name = "Buy Weather 💰⛅",
     Callback = function()
@@ -790,7 +790,7 @@ TabShop:CreateButton({
         end
     end,
 })
-
+ 
 local autoWeather = false
 local cooldown = 10
 task.spawn(function()
@@ -804,7 +804,7 @@ task.spawn(function()
         end
     end
 end)
-
+ 
 TabShop:CreateToggle({
     Name = "Auto Buy Weather (💨/☁️/⛈️)",
     CurrentValue = false,
@@ -813,20 +813,49 @@ TabShop:CreateToggle({
         autoWeather = Value
         Rayfield:Notify({
             Title = "Auto Weather",
-            Content = autoWeather and "ON ✅ (30s cooldown)" or "OFF ❌",
+            Content = autoWeather and "ON ✅ (10s cooldown)" or "OFF ❌",
             Duration = 2
         })
     end,
 })
-
+ 
+-- ====== NEW: Auto Shark Hunt 🦈 ======
+local autoSharkHunt = false
+local sharkCooldown = 10
+TabShop:CreateToggle({
+    Name = "Auto Buy Shark Hunt 🦈",
+    CurrentValue = false,
+    Flag = "AutoSharkHunt",
+    Callback = function(Value)
+        autoSharkHunt = Value
+        Rayfield:Notify({
+            Title = "Auto Shark Hunt",
+            Content = autoSharkHunt and "ON ✅ (10s cooldown)" or "OFF ❌",
+            Duration = 2
+        })
+    end,
+})
+ 
+task.spawn(function()
+    while task.wait(sharkCooldown) do
+        if autoSharkHunt then
+            for _, w in ipairs(weathers) do
+                if w.Id == "Shark Hunt" then
+                    buyWeather(w.Id, w.Display, true)
+                end
+            end
+        end
+    end
+end)
+ 
 -- ====== Utility ⚙️ ======
 local TabUtility = Window:CreateTab("Utility ⚙️")
-
+ 
 local Humanoid
 local defaultWalkSpeed = 20
 local defaultJumpPower = 50
 local infiniteJump = false
-
+ 
 local function setupCharacter(char)
     Humanoid = char:WaitForChild("Humanoid")
     defaultWalkSpeed = Humanoid.WalkSpeed
@@ -834,10 +863,10 @@ local function setupCharacter(char)
     if walkSpeedSlider then walkSpeedSlider:Set(defaultWalkSpeed) end
     if jumpPowerSlider then jumpPowerSlider:Set(defaultJumpPower) end
 end
-
+ 
 if LocalPlayer.Character then setupCharacter(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
-
+ 
 walkSpeedSlider = TabUtility:CreateSlider({
     Name = "Walk Speed 👟⚡️",
     Range = {0, 500},
@@ -847,7 +876,7 @@ walkSpeedSlider = TabUtility:CreateSlider({
     Flag = "WalkSpeed",
     Callback = function(Value) if Humanoid then Humanoid.WalkSpeed = Value end end,
 })
-
+ 
 jumpPowerSlider = TabUtility:CreateSlider({
     Name = "Jump Boost 🤸‍♂️🚀",
     Range = {0, 500},
@@ -857,20 +886,20 @@ jumpPowerSlider = TabUtility:CreateSlider({
     Flag = "JumpPower",
     Callback = function(Value) if Humanoid then Humanoid.JumpPower = Value end end,
 })
-
+ 
 TabUtility:CreateToggle({
     Name = "Infinity Jump 🤸‍♂️♾️",
     CurrentValue = false,
     Flag = "InfiniteJump",
     Callback = function(Value) infiniteJump = Value end,
 })
-
+ 
 UserInputService.JumpRequest:Connect(function()
     if infiniteJump and Humanoid then
         Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
     end
 end)
-
+ 
 TabUtility:CreateButton({
     Name = "Infinity Oxygen 🤿♾️",
     Callback = function()
@@ -887,10 +916,10 @@ TabUtility:CreateButton({
         Rayfield:Notify({ Title = "Infinity Oxygen", Content = "Aktif ✅ (rejoin untuk reset)", Duration = 2 })
     end,
 })
-
+ 
 -- ===== Show Coordinates (Custom Size & Position) 📍 =====
 local coordGui, coordLabel, copyButton, coordLoop, lastText = nil, nil, nil, nil, ""
-
+ 
 TabUtility:CreateToggle({
     Name = "Show Coordinates 📍",
     CurrentValue = false,
@@ -901,7 +930,7 @@ TabUtility:CreateToggle({
                 coordGui.Name = "CoordOverlay"
                 coordGui.ResetOnSpawn = false
                 coordGui.Parent = game:GetService("CoreGui")
-
+ 
                 local frame = Instance.new("Frame")
                 frame.Size = UDim2.new(0, 350, 0, 95) -- sesuai permintaan
                 frame.Position = UDim2.new(0.5, -175, 0.50, 0) -- pas tengah bawah
@@ -909,7 +938,7 @@ TabUtility:CreateToggle({
                 frame.BackgroundTransparency = 0.25
                 frame.BorderSizePixel = 0
                 frame.Parent = coordGui
-
+ 
                 coordLabel = Instance.new("TextLabel")
                 coordLabel.Size = UDim2.new(1, -20, 0, 55)
                 coordLabel.Position = UDim2.new(0,10,0,5)
@@ -923,7 +952,7 @@ TabUtility:CreateToggle({
                 coordLabel.TextYAlignment = Enum.TextYAlignment.Top
                 coordLabel.TextXAlignment = Enum.TextXAlignment.Left
                 coordLabel.Parent = frame
-
+ 
                 copyButton = Instance.new("TextButton")
                 copyButton.Size = UDim2.new(0, 110, 0, 28)
                 copyButton.Position = UDim2.new(0.5, -55, 1, -32) -- center bawah frame
@@ -933,7 +962,7 @@ TabUtility:CreateToggle({
                 copyButton.TextSize = 16
                 copyButton.Text = "Copy 📋"
                 copyButton.Parent = frame
-
+ 
                 copyButton.MouseButton1Click:Connect(function()
                     if lastText ~= "" then
                         setclipboard(lastText)
@@ -944,7 +973,7 @@ TabUtility:CreateToggle({
                     end
                 end)
             end
-
+ 
             coordLoop = RunService.Heartbeat:Connect(function()
                 local char = LocalPlayer.Character
                 if char then
@@ -953,7 +982,7 @@ TabUtility:CreateToggle({
                         local pos = hrp.Position
                         local lookVector = hrp.CFrame.LookVector
                         local targetPoint = pos + (lookVector * 100)
-
+ 
                         local text = string.format(
                             "LookAt → %.0f, %.0f, %.0f\nPos    → %.0f, %.0f, %.0f",
                             targetPoint.X, targetPoint.Y, targetPoint.Z,
@@ -974,13 +1003,13 @@ TabUtility:CreateToggle({
         end
     end
 })
-
+ 
 -- ===== Follow Platform Realistic 🪁 =====
 local followPlatform = nil
 local followPlatformActive = false
 local platformOffset = 3
 local platformMaxY = 8
-
+ 
 local function createFollowPlatform()
     if not followPlatform then
         followPlatform = Instance.new("Part")
@@ -992,14 +1021,14 @@ local function createFollowPlatform()
         followPlatform.Parent = workspace
     end
 end
-
+ 
 local function removeFollowPlatform()
     if followPlatform then
         followPlatform:Destroy()
         followPlatform = nil
     end
 end
-
+ 
 RunService.RenderStepped:Connect(function()
     if followPlatformActive and followPlatform and LocalPlayer.Character then
         local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -1012,7 +1041,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
-
+ 
 TabUtility:CreateToggle({
     Name = "Follow Platform 🌬️",
     CurrentValue = false,
@@ -1025,12 +1054,12 @@ TabUtility:CreateToggle({
         end
     end
 })
-
+ 
 -- ===== Ultra Low Texture Scanner (Auto Update) =====
 local ultraLowEnabled = false
 local savedStates = {}
 local scanConnection = nil
-
+ 
 -- Simpan property dengan aman
 local function saveState(obj, prop, value)
     if not savedStates[obj] then savedStates[obj] = {} end
@@ -1038,29 +1067,29 @@ local function saveState(obj, prop, value)
         savedStates[obj][prop] = value
     end
 end
-
+ 
 -- Terapkan ultra low
 local function applyUltraLow(obj)
     if obj:IsA("Decal") or obj:IsA("Texture") then
         saveState(obj, "Transparency", obj.Transparency)
         pcall(function() obj.Transparency = 1 end)
-
+ 
     elseif obj:IsA("MeshPart") then
         saveState(obj, "TextureID", obj.TextureID)
         saveState(obj, "Material", obj.Material)
         pcall(function() obj.TextureID = "" end)
         pcall(function() obj.Material = Enum.Material.Plastic end)
-
+ 
     elseif obj:IsA("SpecialMesh") or obj:IsA("Mesh") then
         saveState(obj, "TextureId", obj.TextureId)
         pcall(function() obj.TextureId = "" end)
-
+ 
     elseif obj:IsA("BasePart") then
         saveState(obj, "Material", obj.Material)
         pcall(function() obj.Material = Enum.Material.Plastic end)
     end
 end
-
+ 
 -- Restore state
 local function restoreUltraLow(obj)
     if savedStates[obj] then
@@ -1072,7 +1101,7 @@ local function restoreUltraLow(obj)
         savedStates[obj] = nil
     end
 end
-
+ 
 -- Aktifkan/Nonaktifkan Scanner
 local function setUltraLowMode(enable)
     ultraLowEnabled = enable
@@ -1081,14 +1110,14 @@ local function setUltraLowMode(enable)
         for _, obj in ipairs(workspace:GetDescendants()) do
             applyUltraLow(obj)
         end
-
+ 
         -- Auto-scan untuk object baru / update lokasi
         scanConnection = workspace.DescendantAdded:Connect(function(obj)
             if ultraLowEnabled then
                 applyUltraLow(obj)
             end
         end)
-
+ 
         Rayfield:Notify({
             Title = "Ultra Low Scanner",
             Content = "Scanner aktif ✅ (otomatis deteksi texture)",
@@ -1100,13 +1129,13 @@ local function setUltraLowMode(enable)
             scanConnection:Disconnect()
             scanConnection = nil
         end
-
+ 
         -- Kembalikan semua object
         for obj, _ in pairs(savedStates) do
             restoreUltraLow(obj)
         end
         savedStates = {}
-
+ 
         Rayfield:Notify({
             Title = "Ultra Low Scanner",
             Content = "Scanner nonaktif ❌ (kembali normal)",
@@ -1114,7 +1143,7 @@ local function setUltraLowMode(enable)
         })
     end
 end
-
+ 
 -- Toggle UI
 TabUtility:CreateToggle({
     Name = "Ultra Low Scanner 🟦",
