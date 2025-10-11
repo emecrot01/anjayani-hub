@@ -73,6 +73,18 @@ task.spawn(function()
     end
 end)
 
+
+if collect then callRemote(collect,1) end
+                        randDelay(0.08,0.2)
+                    end
+                else
+                    task.wait(0.2)
+                end
+            end
+        end)
+    end
+})
+ 
 -- TAB 2: Auto Farm ⛏️
 local TabFarm = Window:CreateTab("Auto Farm ⛏️")
  
