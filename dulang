@@ -385,65 +385,93 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- === AUTO GEODE COLLECTOR ===
-TabFarm:CreateSection("Auto Geode 💎")
-
-local AutoGeodeEnabled = false
-local collecting = false
-local GeodeFolder = workspace:WaitForChild("Geode")
-
--- fungsi ambil HRP aman (update otomatis saat reset)
-local function GetHRP()
-    local plr = game.Players.LocalPlayer
-    local char = plr.Character or plr.CharacterAdded:Wait()
-    return char:WaitForChild("HumanoidRootPart", 5)
+-- === Instant Geode Collect (No Distance Check, Auto Scan) ===
+local geodeFolder = workspace:WaitForChild("Geode")
+local hrp = HRP()
+local InstantGeodeEnabled = false
+local unclaimedGeodes = {}
+ 
+-- fungsi collect geode
+local function collectGeode(part)
+    if not part or not hrp then return end
+    firetouchinterest(hrp, part, 0)
+    firetouchinterest(hrp, part, 1)
+    task.wait(0.02)
 end
-
--- fungsi ambil ulang HRP saat respawn/reset
-game.Players.LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(1)
-    GetHRP()
-end)
-
--- fungsi ambil geode
-local function CollectGeode(geode)
-    if collecting or not AutoGeodeEnabled then return end
-    collecting = true
-    local hrp = GetHRP()
-    if not hrp or not geode or not geode:IsDescendantOf(workspace) then
-        collecting = false
-        return
-    end
-
-    -- sentuh langsung
-    firetouchinterest(hrp, geode, 0)
-    firetouchinterest(hrp, geode, 1)
-
-    collecting = false
-end
-
--- scanner utama
-task.spawn(function()
-    while task.wait(0.3) do
-        if AutoGeodeEnabled then
-            for _, geode in pairs(GeodeFolder:GetChildren()) do
-                if geode:IsA("BasePart") and geode.Name == "GeodePart" then
-                    CollectGeode(geode)
+ 
+-- scan folder dan update list
+local function scanGeodes()
+    for _, g in ipairs(geodeFolder:GetChildren()) do
+        if g:IsA("Model") then
+            -- ambil semua BasePart di Model
+            for _, part in ipairs(g:GetDescendants()) do
+                if part:IsA("BasePart") and part:FindFirstChildOfClass("TouchTransmitter") then
+                    if not table.find(unclaimedGeodes, part) then
+                        table.insert(unclaimedGeodes, part)
+                    end
                 end
+            end
+        elseif g:IsA("BasePart") and g:FindFirstChildOfClass("TouchTransmitter") then
+            if not table.find(unclaimedGeodes, g) then
+                table.insert(unclaimedGeodes, g)
             end
         end
     end
-end)
-
--- toggle UI
-TabFarm:CreateToggle({
-    Name = "Auto Collect Geode 💎",
-    CurrentValue = false,
-    Flag = "AutoGeode",
-    Callback = function(Value)
-        AutoGeodeEnabled = Value
+end
+ 
+-- collect semua geode dari list
+local function collectAllUnclaimed()
+    for i = #unclaimedGeodes, 1, -1 do
+        local part = unclaimedGeodes[i]
+        if part and part.Parent then
+            collectGeode(part)
+        else
+            table.remove(unclaimedGeodes, i)
+        end
     end
+end
+ 
+-- loop utama
+task.spawn(function()
+    while true do
+        if InstantGeodeEnabled then
+            scanGeodes()            -- scan ulang setiap loop
+            collectAllUnclaimed()   -- collect semua geode
+        end
+        task.wait(0.1)
+    end
+end)
+ 
+-- Toggle Rayfield UI
+TabFarm:CreateToggle({
+    Name = "Instant Geode 💎",
+    CurrentValue = false,
+    Flag = "InstantGeodeToggle",
+    Callback = function(Value)
+        InstantGeodeEnabled = Value
+    end,
 })
+ 
+-- === Fix HRP After Reset/Death ===
+local player = game.Players.LocalPlayer
+ 
+-- fungsi untuk ambil HRP baru setiap respawn
+local function refreshHRP()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local newHRP = char:WaitForChild("HumanoidRootPart", 10)
+    if newHRP then
+        hrp = newHRP
+    end
+end
+ 
+-- trigger pertama (saat awal load)
+refreshHRP()
+ 
+-- update HRP tiap kali karakter respawn
+player.CharacterAdded:Connect(function()
+    task.wait(1) -- beri waktu spawn utuh
+    refreshHRP()
+end)
 
 -- TAB 3: Auto Sell 💰
 local TabSell = Window:CreateTab("Auto Sell 💰")
