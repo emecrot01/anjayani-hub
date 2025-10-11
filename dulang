@@ -18,21 +18,21 @@ local Window = Rayfield:CreateWindow({
  
 -- TAB 1: Home 🏠
 local TabHome = Window:CreateTab("Home 🏠")
-TabHome:CreateLabel("Prospecting! 💎 v1 Remake")
+TabHome:CreateLabel("Prospecting! 💎 v1.1 Remake")
 TabHome:CreateSection("Changelog")
 TabHome:CreateParagraph({
-    Title = "Prospecting! 💎 v1 Remake",
+    Title = "Prospecting! 💎 v1.1 Remake",
     Content = [[
 🎉 Fitur Yang Tersedia:
 • Auto Farm
 Save Position 📍
--Save Sand 🏝️
--Save Water 🌊
--Auto Farm ⛏️
--Auto Collect + Shake ⛏️💧
--Perfect HIT ⛏️💥
-• Auto Sell
-Auto Sell All Ore By Rarity 💰 (Active Kan Toggle Ore Mana Yang Mau Di Jual)
+- Save Sand 🏝️
+- Save Water 🌊
+- Auto Farm ⛏️
+- Auto Collect + Shake ⛏️💧
+- Perfect HIT ⛏️💥
+- Auto Geodes 💎 (New Feature)
+• Auto Sell Ore By Rarity 💰 (Active Kan Toggle Ore Mana Yang Mau Di Jual)
 • Auto Lock Ore By Rarity 🔒 (Active Kan Toggle Ore Mana Yang Mau Di Lock)
 • Misc
 Enchant Pan Anywhere 🔮
@@ -384,6 +384,73 @@ RunService.RenderStepped:Connect(function()
         releaseMouse()
     end
 end)
+
+-- === Instant Geode Collect (No Distance Check, Auto Scan) ===
+local geodeFolder = workspace:WaitForChild("Geode")
+local hrp = HRP()
+local InstantGeodeEnabled = false
+local unclaimedGeodes = {}
+
+-- fungsi collect geode
+local function collectGeode(part)
+    if not part or not hrp then return end
+    firetouchinterest(hrp, part, 0)
+    firetouchinterest(hrp, part, 1)
+    task.wait(0.02)
+end
+
+-- scan folder dan update list
+local function scanGeodes()
+    for _, g in ipairs(geodeFolder:GetChildren()) do
+        if g:IsA("Model") then
+            -- ambil semua BasePart di Model
+            for _, part in ipairs(g:GetDescendants()) do
+                if part:IsA("BasePart") and part:FindFirstChildOfClass("TouchTransmitter") then
+                    if not table.find(unclaimedGeodes, part) then
+                        table.insert(unclaimedGeodes, part)
+                    end
+                end
+            end
+        elseif g:IsA("BasePart") and g:FindFirstChildOfClass("TouchTransmitter") then
+            if not table.find(unclaimedGeodes, g) then
+                table.insert(unclaimedGeodes, g)
+            end
+        end
+    end
+end
+
+-- collect semua geode dari list
+local function collectAllUnclaimed()
+    for i = #unclaimedGeodes, 1, -1 do
+        local part = unclaimedGeodes[i]
+        if part and part.Parent then
+            collectGeode(part)
+        else
+            table.remove(unclaimedGeodes, i)
+        end
+    end
+end
+
+-- loop utama
+task.spawn(function()
+    while true do
+        if InstantGeodeEnabled then
+            scanGeodes()            -- scan ulang setiap loop
+            collectAllUnclaimed()   -- collect semua geode
+        end
+        task.wait(0.2)
+    end
+end)
+
+-- Toggle Rayfield UI
+TabFarm:CreateToggle({
+    Name = "Instant Geode 💎",
+    CurrentValue = false,
+    Flag = "InstantGeodeToggle",
+    Callback = function(Value)
+        InstantGeodeEnabled = Value
+    end,
+})
 
 -- TAB 3: Auto Sell 💰
 local TabSell = Window:CreateTab("Auto Sell 💰")
