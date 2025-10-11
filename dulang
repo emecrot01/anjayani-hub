@@ -75,58 +75,58 @@ end)
 
 -- TAB 2: Auto Farm ⛏️
 local TabFarm = Window:CreateTab("Auto Farm ⛏️")
-
+ 
 -- // Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
-
+ 
 -- // Helpers
 local function character() return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait() end
 local function HRP() local c=character() return c and c:FindFirstChild("HumanoidRootPart") end
 local function Humanoid() local c=character() return c and c:FindFirstChildOfClass("Humanoid") end
-
+ 
 -- // State
 local savedSandCF, savedWaterCF = nil, nil
 local autoFarm, autoHelper = false, false
 local autoFarmWalkSpeed = 26 -- WalkSpeed tetap
-
+ 
 -- // Utils
 local function notify(title, content, dur)
     Rayfield:Notify({Title=title, Content=content, Duration=dur or 2})
 end
-
+ 
 local function randDelay(min, max)
     task.wait(math.random()*(max-min)+min)
 end
-
+ 
 local function getTool()
     local c=character()
     return c and c:FindFirstChildOfClass("Tool")
 end
-
+ 
 local function getCapacity()
     local stats=LocalPlayer:FindFirstChild("Stats")
     return stats and stats:GetAttribute("Capacity")
 end
-
+ 
 local function getFill(tool)
     return tool and tool:GetAttribute("Fill")
 end
-
+ 
 local function panIsActive()
     local c=character()
     return c and c:GetAttribute("Panning")==true
 end
-
+ 
 local function getRemotes(tool)
     if not tool then return end
     local scripts=tool:FindFirstChild("Scripts")
     if not scripts then return end
     return scripts:FindFirstChild("Collect"), scripts:FindFirstChild("Pan"), scripts:FindFirstChild("Shake")
 end
-
+ 
 local function callRemote(remote, ...)
     if not remote then return false end
     local ok
@@ -137,7 +137,7 @@ local function callRemote(remote, ...)
     end
     return ok and true or false
 end
-
+ 
 -- // Movement
 local function moveTo(cf)
     local hum = Humanoid()
@@ -148,7 +148,7 @@ local function moveTo(cf)
     local t0=tick()
     while not done and tick()-t0<8 do randDelay(0.1,0.25) end
 end
-
+ 
 -- // Farm Helpers
 local function ensurePanStarted(tool, tries, delay)
     tries, delay = tries or 10, delay or 0.1
@@ -161,26 +161,26 @@ local function ensurePanStarted(tool, tries, delay)
     end
     return panIsActive()
 end
-
+ 
 local function digUntilFull()
     local tool, cap=getTool(), getCapacity()
     if not tool or not cap then return end
     VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0)
-
+ 
     while autoFarm do
         tool, cap=getTool(), getCapacity()
         local fill=getFill(tool)
         if not tool or not cap or not fill then break end
         if fill>=cap then break end
-
+ 
         local collect=select(1,getRemotes(tool))
         if collect then callRemote(collect,1) end
         randDelay(0.08,0.2)
     end
-
+ 
     VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
 end
-
+ 
 local function shakeLoop()
     while autoFarm and panIsActive() do
         local _,_,shake=getRemotes(getTool())
@@ -188,7 +188,7 @@ local function shakeLoop()
         randDelay(0.04,0.07)
     end
 end
-
+ 
 -- // UI Buttons
 TabFarm:CreateButton({
     Name="Save Sand Position ⛱️",
@@ -197,7 +197,7 @@ TabFarm:CreateButton({
         if h then savedSandCF=h.CFrame notify("Sand Area ⛏️","Saved ✅.") end
     end
 })
-
+ 
 TabFarm:CreateButton({
     Name="Save Water Position 🌊",
     Callback=function()
@@ -205,7 +205,7 @@ TabFarm:CreateButton({
         if h then savedWaterCF=h.CFrame notify("Water Area 💧","Saved ✅.") end
     end
 })
-
+ 
 -- 🔥 Auto Farm Toggle
 TabFarm:CreateToggle({
     Name="Auto Farm ⛏️",
@@ -217,7 +217,7 @@ TabFarm:CreateToggle({
             return
         end
         notify("Auto Farm","Started ✅")
-
+ 
         -- Loop cepat untuk jaga WalkSpeed 26
         task.spawn(function()
             while autoFarm do
@@ -226,7 +226,7 @@ TabFarm:CreateToggle({
                 task.wait(0.05)
             end
         end)
-
+ 
         -- Loop utama farming
         task.spawn(function()
             while autoFarm do
@@ -258,7 +258,7 @@ TabFarm:CreateToggle({
         end)
     end
 })
-
+ 
 -- Helper toggle
 TabFarm:CreateToggle({
     Name="Auto Collect + Shake ⛏️💧",
@@ -299,14 +299,14 @@ TabFarm:CreateToggle({
         end)
     end
 })
-
+ 
 -- === Perfect Hit (Independen, Tap Hold) ===
 local TabPerfectHit = TabFarm -- letakkan di bawah Auto Collect + Shake
-
+ 
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
+ 
 -- Ambil DigBar
 local function getDigBar()
     local ok, dig = pcall(function()
@@ -314,36 +314,36 @@ local function getDigBar()
     end)
     return ok and dig or nil
 end
-
+ 
 local DigBar = getDigBar()
 local PerfectHitEnabled = false
 local Padding = 2
-
+ 
 -- Helper untuk cek tengah bar di dalam GradientFrame
 local function checkCenterHit(bar, frame, pad)
     local barPos, barSize = bar.AbsolutePosition, bar.AbsoluteSize
     local framePos, frameSize = frame.AbsolutePosition, frame.AbsoluteSize
-
+ 
     local barCenterX = barPos.X + (barSize.X / 2)
     local barCenterY = barPos.Y + (barSize.Y / 2)
-
+ 
     local fLeft   = framePos.X - pad
     local fRight  = framePos.X + frameSize.X + pad
     local fTop    = framePos.Y - pad
     local fBottom = framePos.Y + frameSize.Y + pad
-
+ 
     return (barCenterX >= fLeft and barCenterX <= fRight) and
            (barCenterY >= fTop and barCenterY <= fBottom)
 end
-
+ 
 local function pressMouse()
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
 end
-
+ 
 local function releaseMouse()
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
 end
-
+ 
 -- Toggle Perfect Hit
 TabPerfectHit:CreateToggle({
     Name = "Perfect HIT ⛏️💥",
@@ -359,7 +359,7 @@ TabPerfectHit:CreateToggle({
         end
     end
 })
-
+ 
 -- Loop utama Perfect Hit
 RunService.RenderStepped:Connect(function()
     if not PerfectHitEnabled then return end
@@ -368,13 +368,13 @@ RunService.RenderStepped:Connect(function()
         if not DigBar then return end
     end
     if not DigBar.Visible then return end
-
+ 
     local bar = DigBar:FindFirstChild("Line")
     local frame = DigBar:FindFirstChild("GradientFrame")
     if not bar or not frame then return end
-
+ 
     local isHitting = checkCenterHit(bar, frame, Padding)
-
+ 
     if isHitting then
         -- Tap Hold sudah ditekan manual, cuma spam ketika berada di GradientFrame
         pressMouse()
@@ -384,7 +384,7 @@ RunService.RenderStepped:Connect(function()
         releaseMouse()
     end
 end)
-
+ 
 -- === Instant Geode Collect (No Distance Check, Auto Scan) ===
 local geodeFolder = workspace:WaitForChild("Geode")
 local hrp = HRP()
