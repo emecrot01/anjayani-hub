@@ -248,48 +248,31 @@ local function fishSlow()
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
         task.wait(0.5)
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(4 + math.random() * 3)
+        task.wait(2 + math.random() * 1)
         Net["RE/FishingCompleted"]:FireServer()
-        task.wait(0.5 + math.random() * 0.2)
+        task.wait(0.2 + math.random() * 0.1)
         Net["RE/FishingCompleted"]:FireServer()
 
         currentFishCount = currentFishCount + 1
         autoSellCheck()
-        task.wait(0.2)
+        task.wait(0.25)
     end
 end
 
 local function fishFast()
-    task.wait(2.5)
+    task.wait(1)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
-        task.wait(0.1)
+        task.wait(0.02)
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(0.55 + math.random() * 0.25)
+        task.wait(0.47 + math.random() * 0.15)
         Net["RE/FishingCompleted"]:FireServer()
-        task.wait(0.35 + math.random() * 0.2)
+        task.wait(0.2 + math.random() * 0.1)
         Net["RE/FishingCompleted"]:FireServer()
 
         currentFishCount = currentFishCount + 1
         autoSellCheck()
-        task.wait(0.3)
-    end
-end
-
-local function fishFastPlus()
-    task.wait(3)
-    while running do
-        Net["RF/ChargeFishingRod"]:InvokeServer(tick())
-        task.wait(0.1)
-        Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(0.45 + math.random() * 0.25)
-        Net["RE/FishingCompleted"]:FireServer()
-        task.wait(0.35 + math.random() * 0.2)
-        Net["RE/FishingCompleted"]:FireServer()
-
-        currentFishCount = currentFishCount + 1
-        autoSellCheck()
-        task.wait(0.3)
+        task.wait(0.25)
     end
 end
 
@@ -301,7 +284,7 @@ end
 -- Dropdown Pilihan Mode
 TabFarm:CreateDropdown({
     Name = "Select Mode 🎛️",
-    Options = {"Slow 🐌", "Fast ⚡", "Fast+ ⚡⚡ (need Empower/Reeler)"},
+    Options = {"Slow 🐌", "Fast ⚡"},
     CurrentOption = {},
     Callback = function(Option)
         selectedMode = type(Option) == "table" and Option[1] or Option
