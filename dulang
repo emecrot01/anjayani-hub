@@ -864,3 +864,90 @@ TabMisc:CreateButton({
         end
     end,
 })
+
+-- ===== Show Coordinates (Custom Size & Position) 📍 =====
+local coordGui, coordLabel, copyButton, coordLoop, lastText = nil, nil, nil, nil, ""
+ 
+TabMisc:CreateToggle({
+    Name = "Show Coordinates 📍",
+    CurrentValue = false,
+    Callback = function(Value)
+        if Value then
+            if not coordGui then
+                coordGui = Instance.new("ScreenGui")
+                coordGui.Name = "CoordOverlay"
+                coordGui.ResetOnSpawn = false
+                coordGui.Parent = game:GetService("CoreGui")
+ 
+                local frame = Instance.new("Frame")
+                frame.Size = UDim2.new(0, 350, 0, 95) -- sesuai permintaan
+                frame.Position = UDim2.new(0.5, -175, 0.50, 0) -- pas tengah bawah
+                frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+                frame.BackgroundTransparency = 0.25
+                frame.BorderSizePixel = 0
+                frame.Parent = coordGui
+ 
+                coordLabel = Instance.new("TextLabel")
+                coordLabel.Size = UDim2.new(1, -20, 0, 55)
+                coordLabel.Position = UDim2.new(0,10,0,5)
+                coordLabel.BackgroundTransparency = 1
+                coordLabel.TextColor3 = Color3.fromRGB(0,255,0)
+                coordLabel.TextStrokeTransparency = 0
+                coordLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+                coordLabel.Font = Enum.Font.Code
+                coordLabel.TextSize = 20 -- teks lebih besar
+                coordLabel.Text = "Menunggu posisi..."
+                coordLabel.TextYAlignment = Enum.TextYAlignment.Top
+                coordLabel.TextXAlignment = Enum.TextXAlignment.Left
+                coordLabel.Parent = frame
+ 
+                copyButton = Instance.new("TextButton")
+                copyButton.Size = UDim2.new(0, 110, 0, 28)
+                copyButton.Position = UDim2.new(0.5, -55, 1, -32) -- center bawah frame
+                copyButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+                copyButton.TextColor3 = Color3.fromRGB(255,255,255)
+                copyButton.Font = Enum.Font.Code
+                copyButton.TextSize = 16
+                copyButton.Text = "Copy 📋"
+                copyButton.Parent = frame
+ 
+                copyButton.MouseButton1Click:Connect(function()
+                    if lastText ~= "" then
+                        setclipboard(lastText)
+                        copyButton.Text = "Copied!"
+                        task.delay(1.5, function()
+                            if copyButton then copyButton.Text = "Copy 📋" end
+                        end)
+                    end
+                end)
+            end
+ 
+            coordLoop = RunService.Heartbeat:Connect(function()
+                local char = LocalPlayer.Character
+                if char then
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        local pos = hrp.Position
+                        local lookVector = hrp.CFrame.LookVector
+                        local targetPoint = pos + (lookVector * 100)
+ 
+                        local text = string.format(
+                            "LookAt → %.0f, %.0f, %.0f\nPos    → %.0f, %.0f, %.0f",
+                            targetPoint.X, targetPoint.Y, targetPoint.Z,
+                            pos.X, pos.Y, pos.Z
+                        )
+                        coordLabel.Text = text
+                        lastText = text
+                    end
+                end
+            end)
+        else
+            if coordLoop then coordLoop:Disconnect() coordLoop = nil end
+            if coordGui then
+                coordGui:Destroy()
+                coordGui, coordLabel, copyButton = nil, nil, nil
+                lastText = ""
+            end
+        end
+    end
+})
