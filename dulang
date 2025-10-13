@@ -385,28 +385,28 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- === Character TP Geode Scanner (Updated Single Loop) ===
+-- === Character TP Geode Scanner (Fortune River Start, Instant Collect, No Logs) ===
 local player = game.Players.LocalPlayer
 local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 local geodeFolder = workspace:WaitForChild("Geode")
 
 local ScannerEnabled = false
 local TP_DELAY = 1.5
-local LOOP_COOLDOWN = 150 -- 2 menit 30 detik = 150s
+local LOOP_COOLDOWN = 60
 local SCAN_RADIUS = 3000
 
 -- Daftar pulau aktif
 local PulauList = {
+    {name = "Fortune River", pos = Vector3.new(-303, 24, -50)},
     {name = "Abyysal", pos = Vector3.new(318, -256, 777)},
     {name = "Grotto", pos = Vector3.new(120, -131, 892)},
-    {name = "Fortune River", pos = Vector3.new(-303, 24, -50)},
     {name = "Fortune River Delta", pos = Vector3.new(-349, 13, -769)},
     {name = "Volcanic Sand", pos = Vector3.new(123, 13, -1545)},
     {name = "Windswept Beach", pos = Vector3.new(757, 33, -1665)},
     {name = "Frozen Peak", pos = Vector3.new(-1458, 358, -3093)},
 }
 
--- Fungsi collect geode
+-- Fungsi collect geode (instant)
 local function fireTouch(part)
     if not part or not hrp then return end
     pcall(function()
@@ -415,22 +415,19 @@ local function fireTouch(part)
     end)
 end
 
--- Scan + collect geode di radius sekitar HRP
+-- Scan + collect geode di radius sekitar HRP (instant)
 local function scanAndCollect(radius)
     radius = radius or SCAN_RADIUS
-    local count = 0
     for _, g in ipairs(geodeFolder:GetDescendants()) do
         if g:IsA("BasePart") and g:FindFirstChildOfClass("TouchTransmitter") then
             if (hrp.Position - g.Position).Magnitude <= radius then
                 fireTouch(g)
-                count += 1
             end
         end
     end
-    return count
 end
 
--- Loop utama TP per pulau + scan + log
+-- Loop utama TP per pulau + scan
 local function startScanner()
     task.spawn(function()
         while ScannerEnabled do
@@ -439,21 +436,17 @@ local function startScanner()
 
                 -- TP ke pulau
                 hrp.CFrame = CFrame.new(loc.pos)
-                print(string.format("[TPScanner] 🚀 Teleport to %s", loc.name))
 
                 -- Scan + collect
-                local collected = scanAndCollect(SCAN_RADIUS)
-                print(string.format("[TPScanner] 🌍 %s | Collected %d geodes nearby", loc.name, collected))
+                scanAndCollect(SCAN_RADIUS)
 
                 -- Delay antar pulau
                 task.wait(TP_DELAY)
             end
 
             -- Cooldown sebelum loop selanjutnya
-            print("[TPScanner] ⏱ Loop complete, waiting 2m30s before next loop")
             task.wait(LOOP_COOLDOWN)
         end
-        print("[TPScanner] ❌ Stopped")
     end)
 end
 
@@ -467,12 +460,15 @@ TabFarm:CreateToggle({
         if state then
             hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
             startScanner()
-            print("[TPScanner] ✅ Started")
-        else
-            print("[TPScanner] ❌ Stopped")
         end
     end
 })
+
+-- Refresh HRP saat respawn
+player.CharacterAdded:Connect(function(char)
+    task.wait(1)
+    hrp = char:WaitForChild("HumanoidRootPart", 10)
+end)
 
 -- TAB 3: Auto Sell 💰
 local TabSell = Window:CreateTab("Auto Sell 💰")
