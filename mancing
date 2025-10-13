@@ -263,11 +263,11 @@ local function fishFast()
     task.wait(1)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
-        task.wait(0.03)
+        task.wait(0.05)
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(0.65)
+        task.wait(0.85 + math.random() * 0.05)
         Net["RE/FishingCompleted"]:FireServer()
-        task.wait(0.35)
+        task.wait(0.3 + math.random() * 0.2)
         Net["RE/FishingCompleted"]:FireServer()
  
         currentFishCount = currentFishCount + 1
