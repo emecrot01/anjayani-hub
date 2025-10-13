@@ -260,7 +260,7 @@ local function fishSlow()
 end
  
 local function fishFast()
-    task.wait(0.5)
+    task.wait(0.1)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
         task.wait(0.04)
