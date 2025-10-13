@@ -250,8 +250,6 @@ local function fishSlow()
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
         task.wait(1 + math.random() * 1)
         Net["RE/FishingCompleted"]:FireServer()
-        task.wait(0.5 + math.random() * 0.2)
-        Net["RE/FishingCompleted"]:FireServer()
  
         currentFishCount = currentFishCount + 1
         autoSellCheck()
@@ -260,19 +258,17 @@ local function fishSlow()
 end
  
 local function fishFast()
-    task.wait(0.1)
+    task.wait(1)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
-        task.wait(0.04)
+        task.wait(0.02)
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(0.68 + math.random() * 0.07)
-        Net["RE/FishingCompleted"]:FireServer()
-        task.wait(0.24 + math.random() * 0.06)
+        task.wait(0.6 + math.random() * 0.4)
         Net["RE/FishingCompleted"]:FireServer()
  
         currentFishCount = currentFishCount + 1
         autoSellCheck()
-        task.wait(0.3)
+        task.wait(0.1)
     end
 end
  
@@ -280,7 +276,7 @@ end
 local function equipRod()
     Net["RE/EquipToolFromHotbar"]:FireServer(1)
 end
-
+ 
 -- Dropdown Pilihan Mode
 TabFarm:CreateDropdown({
     Name = "Select Mode 🎛️",
@@ -297,7 +293,7 @@ TabFarm:CreateDropdown({
         end
     end
 })
-
+ 
 -- Toggle Auto Fishing
 TabFarm:CreateToggle({
     Name = "Auto Fishing 🐟",
