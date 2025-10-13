@@ -260,14 +260,14 @@ local function fishSlow()
 end
  
 local function fishFast()
-    task.wait(1)
+    task.wait(0.5)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
-        task.wait(0.05)
+        task.wait(0.04)
         Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(0.85 + math.random() * 0.05)
+        task.wait(0.68 + math.random() * 0.07)
         Net["RE/FishingCompleted"]:FireServer()
-        task.wait(0.3 + math.random() * 0.2)
+        task.wait(0.24 + math.random() * 0.06)
         Net["RE/FishingCompleted"]:FireServer()
  
         currentFishCount = currentFishCount + 1
@@ -319,8 +319,6 @@ TabFarm:CreateToggle({
                 task.spawn(fishSlow)
             elseif selectedMode == "Fast ⚡" then
                 task.spawn(fishFast)
-            elseif selectedMode == "Fast+ ⚡⚡ (need Empower/Reeler)" then
-                task.spawn(fishFastPlus)
             end
             Rayfield:Notify({
                 Title = "Auto Fishing 🎣",
@@ -991,15 +989,15 @@ TabUtility:CreateToggle({
 local followPlatform = nil
 local followPlatformActive = false
 local platformOffset = 3
-local platformMaxY = 8
+local platformMaxY = 7  -- diubah dari 8 menjadi 7
  
 local function createFollowPlatform()
     if not followPlatform then
         followPlatform = Instance.new("Part")
-        followPlatform.Size = Vector3.new(8,1,8)
+        followPlatform.Size = Vector3.new(5,1,5)
         followPlatform.Anchored = true
         followPlatform.CanCollide = true
-        followPlatform.Transparency = 0.5
+        followPlatform.Transparency = 0.9
         followPlatform.Name = "FollowPlatform"
         followPlatform.Parent = workspace
     end
