@@ -391,8 +391,8 @@ local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPa
 local geodeFolder = workspace:WaitForChild("Geode")
 
 local ScannerEnabled = false
-local TP_DELAY = 1.5
-local LOOP_COOLDOWN = 60
+local TP_DELAY = 1
+local LOOP_COOLDOWN = 180
 local SCAN_RADIUS = 3000
 
 -- Daftar pulau aktif
