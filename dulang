@@ -385,6 +385,105 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
+-- === Instant Geode Collect (Optimized for Large Maps) ===
+local geodeFolder = workspace:WaitForChild("Geode")
+local hrp = nil
+local InstantGeodeEnabled = false
+local unclaimedGeodes = {}
+
+-- Fungsi collect geode
+local function collectGeode(part)
+    if not part or not hrp then return end
+    firetouchinterest(hrp, part, 0)
+    firetouchinterest(hrp, part, 1)
+    task.wait(0.02)
+end
+
+-- Scan folder dan update list geode
+local function scanGeodes()
+    local updated = false
+    for _, g in ipairs(geodeFolder:GetChildren()) do
+        if g:IsA("Model") then
+            for _, part in ipairs(g:GetDescendants()) do
+                if part:IsA("BasePart") and part:FindFirstChildOfClass("TouchTransmitter") then
+                    if not table.find(unclaimedGeodes, part) then
+                        table.insert(unclaimedGeodes, part)
+                        updated = true
+                    end
+                end
+            end
+        elseif g:IsA("BasePart") and g:FindFirstChildOfClass("TouchTransmitter") then
+            if not table.find(unclaimedGeodes, g) then
+                table.insert(unclaimedGeodes, g)
+                updated = true
+            end
+        end
+    end
+    return updated
+end
+
+-- Collect semua geode dari list
+local function collectAllUnclaimed()
+    for i = #unclaimedGeodes, 1, -1 do
+        local part = unclaimedGeodes[i]
+        if part and part.Parent then
+            collectGeode(part)
+        else
+            table.remove(unclaimedGeodes, i)
+        end
+    end
+end
+
+-- Loop utama (lebih ringan)
+task.spawn(function()
+    local scanTimer = 0
+    while true do
+        if InstantGeodeEnabled then
+            scanTimer = scanTimer + 0.1
+            if scanTimer >= 1 then
+                scanGeodes()  -- Scan hanya tiap 1 detik
+                scanTimer = 0
+            end
+            if #unclaimedGeodes > 0 then
+                collectAllUnclaimed()  -- Collect semua geode instan
+            end
+        end
+        task.wait(0.1)
+    end
+end)
+
+-- Toggle Rayfield UI
+TabFarm:CreateToggle({
+    Name = "Instant Geode 💎",
+    CurrentValue = false,
+    Flag = "InstantGeodeToggleOptimized",
+    Callback = function(Value)
+        InstantGeodeEnabled = Value
+    end,
+})
+
+-- === Fix HRP After Reset/Death ===
+local player = game.Players.LocalPlayer
+
+local function refreshHRP()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local newHRP = char:WaitForChild("HumanoidRootPart", 10)
+    if newHRP then
+        hrp = newHRP
+    end
+end
+
+-- Trigger pertama saat load
+refreshHRP()
+
+-- Update HRP tiap kali karakter respawn
+player.CharacterAdded:Connect(function(char)
+    local newHRP = char:WaitForChild("HumanoidRootPart", 10)
+    if newHRP then
+        hrp = newHRP
+    end
+end)
+
 -- === Character TP Geode Scanner (Fortune River Start, Instant Collect, No Logs) ===
 local player = game.Players.LocalPlayer
 local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
