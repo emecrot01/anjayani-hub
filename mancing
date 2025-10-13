@@ -984,8 +984,8 @@ TabUtility:CreateToggle({
 -- ===== Follow Platform Realistic 🪁 =====
 local followPlatform = nil
 local followPlatformActive = false
-local platformOffset = 3
-local platformMaxY = 7  -- diubah dari 8 menjadi 7
+local platformOffset = 1
+local platformMaxY = 1
  
 local function createFollowPlatform()
     if not followPlatform then
@@ -993,7 +993,7 @@ local function createFollowPlatform()
         followPlatform.Size = Vector3.new(5,1,5)
         followPlatform.Anchored = true
         followPlatform.CanCollide = true
-        followPlatform.Transparency = 0.9
+        followPlatform.Transparency = 0.5
         followPlatform.Name = "FollowPlatform"
         followPlatform.Parent = workspace
     end
