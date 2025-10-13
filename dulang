@@ -385,93 +385,94 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- === Instant Geode Collect (No Distance Check, Auto Scan) ===
-local geodeFolder = workspace:WaitForChild("Geode")
-local hrp = HRP()
-local InstantGeodeEnabled = false
-local unclaimedGeodes = {}
-
--- fungsi collect geode
-local function collectGeode(part)
-    if not part or not hrp then return end
-    firetouchinterest(hrp, part, 0)
-    firetouchinterest(hrp, part, 1)
-    task.wait(0.02)
-end
-
--- scan folder dan update list
-local function scanGeodes()
-    for _, g in ipairs(geodeFolder:GetChildren()) do
-        if g:IsA("Model") then
-            -- ambil semua BasePart di Model
-            for _, part in ipairs(g:GetDescendants()) do
-                if part:IsA("BasePart") and part:FindFirstChildOfClass("TouchTransmitter") then
-                    if not table.find(unclaimedGeodes, part) then
-                        table.insert(unclaimedGeodes, part)
-                    end
-                end
-            end
-        elseif g:IsA("BasePart") and g:FindFirstChildOfClass("TouchTransmitter") then
-            if not table.find(unclaimedGeodes, g) then
-                table.insert(unclaimedGeodes, g)
-            end
-        end
-    end
-end
-
--- collect semua geode dari list
-local function collectAllUnclaimed()
-    for i = #unclaimedGeodes, 1, -1 do
-        local part = unclaimedGeodes[i]
-        if part and part.Parent then
-            collectGeode(part)
-        else
-            table.remove(unclaimedGeodes, i)
-        end
-    end
-end
-
--- loop utama
-task.spawn(function()
-    while true do
-        if InstantGeodeEnabled then
-            scanGeodes()            -- scan ulang setiap loop
-            collectAllUnclaimed()   -- collect semua geode
-        end
-        task.wait(0.1)
-    end
-end)
-
--- Toggle Rayfield UI
-TabFarm:CreateToggle({
-    Name = "Instant Geode 💎",
-    CurrentValue = false,
-    Flag = "InstantGeodeToggle",
-    Callback = function(Value)
-        InstantGeodeEnabled = Value
-    end,
-})
-
--- === Fix HRP After Reset/Death ===
+-- === Character TP Geode Scanner (Updated Single Loop) ===
 local player = game.Players.LocalPlayer
+local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+local geodeFolder = workspace:WaitForChild("Geode")
 
--- fungsi untuk ambil HRP baru setiap respawn
-local function refreshHRP()
-    local char = player.Character or player.CharacterAdded:Wait()
-    local newHRP = char:WaitForChild("HumanoidRootPart", 10)
-    if newHRP then
-        hrp = newHRP
-    end
+local ScannerEnabled = false
+local TP_DELAY = 1.5
+local LOOP_COOLDOWN = 150 -- 2 menit 30 detik = 150s
+local SCAN_RADIUS = 3000
+
+-- Daftar pulau aktif
+local PulauList = {
+    {name = "Abyysal", pos = Vector3.new(318, -256, 777)},
+    {name = "Grotto", pos = Vector3.new(120, -131, 892)},
+    {name = "Fortune River", pos = Vector3.new(-303, 24, -50)},
+    {name = "Fortune River Delta", pos = Vector3.new(-349, 13, -769)},
+    {name = "Volcanic Sand", pos = Vector3.new(123, 13, -1545)},
+    {name = "Windswept Beach", pos = Vector3.new(757, 33, -1665)},
+    {name = "Frozen Peak", pos = Vector3.new(-1458, 358, -3093)},
+}
+
+-- Fungsi collect geode
+local function fireTouch(part)
+    if not part or not hrp then return end
+    pcall(function()
+        firetouchinterest(hrp, part, 0)
+        firetouchinterest(hrp, part, 1)
+    end)
 end
 
--- trigger pertama (saat awal load)
-refreshHRP()
+-- Scan + collect geode di radius sekitar HRP
+local function scanAndCollect(radius)
+    radius = radius or SCAN_RADIUS
+    local count = 0
+    for _, g in ipairs(geodeFolder:GetDescendants()) do
+        if g:IsA("BasePart") and g:FindFirstChildOfClass("TouchTransmitter") then
+            if (hrp.Position - g.Position).Magnitude <= radius then
+                fireTouch(g)
+                count += 1
+            end
+        end
+    end
+    return count
+end
 
--- update HRP tiap kali karakter respawn
-player.CharacterAdded:Connect(function()
-    task.wait(1) -- beri waktu spawn utuh
-    refreshHRP()
-end)
+-- Loop utama TP per pulau + scan + log
+local function startScanner()
+    task.spawn(function()
+        while ScannerEnabled do
+            for _, loc in ipairs(PulauList) do
+                if not ScannerEnabled then break end
+
+                -- TP ke pulau
+                hrp.CFrame = CFrame.new(loc.pos)
+                print(string.format("[TPScanner] 🚀 Teleport to %s", loc.name))
+
+                -- Scan + collect
+                local collected = scanAndCollect(SCAN_RADIUS)
+                print(string.format("[TPScanner] 🌍 %s | Collected %d geodes nearby", loc.name, collected))
+
+                -- Delay antar pulau
+                task.wait(TP_DELAY)
+            end
+
+            -- Cooldown sebelum loop selanjutnya
+            print("[TPScanner] ⏱ Loop complete, waiting 2m30s before next loop")
+            task.wait(LOOP_COOLDOWN)
+        end
+        print("[TPScanner] ❌ Stopped")
+    end)
+end
+
+-- Toggle Rayfield
+TabFarm:CreateToggle({
+    Name = "All Geodes TP 🌍",
+    CurrentValue = false,
+    Flag = "TPScannerToggle",
+    Callback = function(state)
+        ScannerEnabled = state
+        if state then
+            hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            startScanner()
+            print("[TPScanner] ✅ Started")
+        else
+            print("[TPScanner] ❌ Stopped")
+        end
+    end
+})
 
 -- TAB 3: Auto Sell 💰
 local TabSell = Window:CreateTab("Auto Sell 💰")
