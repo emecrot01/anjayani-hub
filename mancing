@@ -7,16 +7,56 @@ local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
--- Booting Rayfield UI Library
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
- 
+-- Safe load Rayfield UI Library (pcall + fallback stub)
+local Rayfield
+do
+    local ok, result = pcall(function()
+        local src = game:HttpGet('https://sirius.menu/rayfield')
+        if not src or src == "" then
+            error("Empty Rayfield source")
+        end
+        local fn = loadstring(src)
+        if not fn then
+            error("loadstring returned nil")
+        end
+        return fn()
+    end)
+    if ok and result then
+        Rayfield = result
+    else
+        warn("Failed to load Rayfield UI library:", result)
+        -- Fallback minimal stub so script won't error out if Rayfield unavailable.
+        -- NOTE: this stub does NOT create a visible UI. It's only to prevent crashes.
+        Rayfield = {}
+        function Rayfield:Notify(params)
+            print("Rayfield Notify ->", params and params.Title, params and params.Content)
+        end
+        function Rayfield:CreateWindow(params)
+            local window = {}
+            function window:CreateTab(name)
+                local tab = {}
+                function tab:CreateSection() end
+                function tab:CreateLabel() end
+                function tab:CreateParagraph() end
+                function tab:CreateDropdown(opts) end
+                function tab:CreateToggle(opts) end
+                function tab:CreateInput(opts) end
+                function tab:CreateButton(opts) end
+                function tab:CreateSlider(opts) end
+                return tab
+            end
+            return window
+        end
+    end
+end
+
 -- Notif Startup
 Rayfield:Notify({
     Title = "Sabar Bngst 🗿🖕🏻",
     Content = "Lagi Loading",
     Duration = 3
 })
- ini
+
 -- Window Utama
 local Window = Rayfield:CreateWindow({
     Name = "EmeCRT Fish It 🐟",
@@ -41,12 +81,15 @@ TabHome:CreateParagraph({
 (Only Weather For Now)
 - Utility 
 ( Walk Speed, Jump Boost, Inf Jump, Inf Oxygen, Show Coordinate, Flying Followed Platform)
- 
+
 📝 Notes
-- Ada 3 Tipe Kecepatan Auto Fishing (Slow, Fast, Fast+)
-Slow (Support Semua Rod)
-Fast (Support Steampunk++)
-Fast+ (Ares++, Wajib Menggunakan Enchantment Reeler/Empower)
+!!! WAJIB DI BACA !!!
+Untuk Kecepatan Memancing Di Usahakan Sesuai Dengan Yang Ku Sediakan:
+- Slow: Low > Mid Tier Rod Atau High PING
+- Fast: Semi High > High Tier Rod (Fast Rawan Ngebug)
+
+Attention 🚧
+Sangat Di Anjurkan Untuk Menggunakan Enchantment Empowered/Reeler
 
 🚨 Updates 
 - New Teleport 
@@ -58,25 +101,13 @@ TabHome:CreateParagraph({
     Title = "Developer",
     Content = "EmeCRT"
 })
- 
--- Slot Anti AFK di Home
-TabHome:CreateSection("⏰ Anti AFK")
-TabHome:CreateParagraph({
-    Title = "Anti Turu ⏰",
-    Content = "AON 🟢"
-})
- 
--- 🔒 Anti AFK (Genesis Copy + Loop 10 menit)
-local Players = game:service("Players")
-local LocalPlayer = Players.LocalPlayer
-local VirtualUser = game:service("VirtualUser")
- 
--- Trigger bawaan Roblox (20 menit sekali)
-LocalPlayer.Idled:connect(function()
+
+-- Anti AFK (single declaration; removed duplicate)
+LocalPlayer.Idled:Connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
 end)
- 
+
 -- Loop cadangan tiap 10 menit
 task.spawn(function()
     while true do
@@ -87,8 +118,23 @@ task.spawn(function()
 end)
 
 -- ====== Auto Farm & Grind TP ======
-local TabFarm = Window:CreateTab("🐟 Auto Farm")      
-local Net = ReplicatedStorage.Packages["_Index"]["sleitnick_net@0.2.0"].net      
+local TabFarm = Window:CreateTab("🐟 Auto Farm")
+
+-- Safe obtain Net (wrap in pcall)
+local Net = nil
+pcall(function()
+    local packages = ReplicatedStorage:WaitForChild("Packages", 1)
+    if packages then
+        local idx = packages:FindFirstChild("_Index")
+        if idx then
+            local snet = idx:FindFirstChild("sleitnick_net@0.2.0")
+            if snet then
+                Net = snet:FindFirstChild("net") or nil
+            end
+        end
+    end
+end)
+-- Net may be nil; code later checks for Net before using.
 
 -- Variables
 local grindLocations = {
@@ -127,15 +173,15 @@ local grindLocations = {
         Pos = Vector3.new(1462, 8, -325),
         LookAt = Vector3.new(1561, 8, -307)
     },
-    {   
+    {
         Name = "Underground Cellar 🕳️🏺",
         Pos = Vector3.new(2136, -91, -695),
         LookAt = Vector3.new(2139, -91, -795)
     }
 }
 
-local savedGrind = nil      
-local grindActive = false      
+local savedGrind = nil
+local grindActive = false
 local lastPosition = nil
 
 -- ========== GRIND TELEPORT ==========
@@ -157,11 +203,11 @@ TabFarm:CreateDropdown({
 
 local function teleportToLocation(location)
     local char = LocalPlayer.Character
-    if not char then return end
+    if not (char and char:FindFirstChild("HumanoidRootPart")) then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
 
     if not lastPosition then
+        -- store a CFrame copy
         lastPosition = hrp.CFrame
     end
 
@@ -186,6 +232,7 @@ TabFarm:CreateToggle({
                 end
             end)
         else
+            -- return to last position if valid
             local char = LocalPlayer.Character
             if char and lastPosition then
                 local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -212,15 +259,107 @@ end)
 
 -- ========== AUTO FISHING ==========
 TabFarm:CreateSection("Automatic Fishing 🎣")
- 
+
+-- Variabel utama
 local running = false
 local currentFishCount = 0
 local autoSellActive = false
 local targetFishCount = 0
 local selectedMode = nil
- 
-local SellAllRemote = Net["RF/SellAllItems"]
- 
+local isReloadingAnim = false
+local animTracks = nil
+
+-- Remote references (gunakan helper untuk safe access)
+local function findRemote(name)
+    if not Net then return nil end
+    -- try FindFirstChild, or index access
+    local ok
+    ok = Net:FindFirstChild(name)
+    if ok then return ok end
+    return Net[name]
+end
+
+local SellAllRemote = findRemote("RF/SellAllItems")
+
+-- 🪝 Animation IDs
+local animations = {
+    idle = "rbxassetid://96586569072385",
+    cast = "rbxassetid://180435571",
+    wait = "rbxassetid://92624107165273",
+    reel = "rbxassetid://134965425664034"
+}
+
+-- Pastikan LocalPlayer siap (fix untuk executor yang mengeksekusi terlalu awal)
+if not LocalPlayer then
+    repeat task.wait() LocalPlayer = game:GetService("Players").LocalPlayer until LocalPlayer
+end
+
+-- 🧠 Get Animator (gunakan LocalPlayer)
+local function getAnimator()
+    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local humanoid = character:FindFirstChild("Humanoid") or character:WaitForChild("Humanoid", 5)
+    if not humanoid then
+        warn("Failed to find Humanoid")
+        return nil
+    end
+    local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+    return animator
+end
+
+-- 🧩 Load Animations
+local function loadAnimations()
+    local animator = getAnimator()
+    if not animator then return nil end
+    local newTracks = {}
+    for name, id in pairs(animations) do
+        local success, anim = pcall(function()
+            local animation = Instance.new("Animation")
+            animation.AnimationId = id
+            return animator:LoadAnimation(animation)
+        end)
+        if success and anim then
+            newTracks[name] = anim
+        else
+            warn("Failed to load animation:", name, id)
+        end
+    end
+    return newTracks
+end
+
+-- Auto reload animasi saat respawn (safe)
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    animTracks = loadAnimations()
+end)
+
+-- initial attempt to load
+animTracks = loadAnimations()
+
+-- 🛑 Stop semua animasi
+local function stopAllAnimations()
+    if animTracks then
+        for _, track in pairs(animTracks) do
+            if track then
+                track.Looped = false
+                track:Stop(0)
+            end
+        end
+    end
+end
+
+-- Auto reload animasi jika error
+local function ensureAnimations()
+    if not animTracks and not isReloadingAnim then
+        isReloadingAnim = true
+        task.spawn(function()
+            animTracks = loadAnimations()
+            task.wait(0.5)
+            isReloadingAnim = false
+        end)
+    end
+end
+
+-- Fungsi auto sell (tetap pakai milikmu)
 local function autoSellCheck()
     if autoSellActive and SellAllRemote and targetFishCount > 0 and currentFishCount >= targetFishCount then
         task.spawn(function()
@@ -241,46 +380,81 @@ local function autoSellCheck()
         end)
     end
 end
- 
+
+-- Fungsi mancing slow (hybrid: pake animasi)
 local function fishSlow()
-    task.wait(3)
+    task.wait(2)
     while running do
-        Net["RF/ChargeFishingRod"]:InvokeServer(tick())
-        task.wait(0.5)
-        Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1.3)
-        task.wait(1 + math.random() * 1)
-        Net["RE/FishingCompleted"]:FireServer()
- 
-        currentFishCount = currentFishCount + 1
-        autoSellCheck()
-        task.wait(0.25)
+        if not Net then break end
+        pcall(function()
+            ensureAnimations()
+            if animTracks and animTracks.cast then animTracks.cast:Play() end
+
+            local rCharge = findRemote("RF/ChargeFishingRod")
+            if rCharge then pcall(function() rCharge:InvokeServer(tick()) end) end
+
+            task.wait(0.5)
+
+            if animTracks and animTracks.wait then animTracks.wait:Play() end
+            local rStart = findRemote("RF/RequestFishingMinigameStarted")
+            if rStart then pcall(function() rStart:InvokeServer(-1 + math.random(), 1) end) end
+
+            task.wait(1 + math.random() * 1)
+
+            if animTracks and animTracks.reel then animTracks.reel:Play() end
+            local rComplete = findRemote("RE/FishingCompleted")
+            if rComplete then pcall(function() rComplete:FireServer() end) end
+
+            currentFishCount = currentFishCount + 1
+            autoSellCheck()
+        end)
+        task.wait(0.3)
     end
 end
- 
+
+-- Fungsi mancing fast (hybrid: pake animasi)
 local function fishFast()
     task.wait(2)
     while running do
-        Net["RF/ChargeFishingRod"]:InvokeServer(tick())
-        task.wait(0.02)
-        Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1.3)
-        task.wait(0.46 + math.random() * 0.24)
-        Net["RE/FishingCompleted"]:FireServer()
- 
-        currentFishCount = currentFishCount + 1
-        autoSellCheck()
-        task.wait(0.25)
+        if not Net then break end
+        pcall(function()
+            ensureAnimations()
+            if animTracks and animTracks.cast then animTracks.cast:Play() end
+
+            local rCharge = findRemote("RF/ChargeFishingRod")
+            if rCharge then pcall(function() rCharge:InvokeServer(tick()) end) end
+
+            task.wait(0.02)
+
+            if animTracks and animTracks.wait then animTracks.wait:Play() end
+            local rStart = findRemote("RF/RequestFishingMinigameStarted")
+            if rStart then pcall(function() rStart:InvokeServer(-1 + math.random(), 1.3) end) end
+
+            task.wait(0.46 + math.random() * 0.24)
+
+            if animTracks and animTracks.reel then animTracks.reel:Play() end
+            local rComplete = findRemote("RE/FishingCompleted")
+            if rComplete then pcall(function() rComplete:FireServer() end) end
+
+            currentFishCount = currentFishCount + 1
+            autoSellCheck()
+        end)
+        task.wait(0.3)
     end
 end
- 
--- Equip Rod
+
+-- Equip Rod (safe)
 local function equipRod()
-    Net["RE/EquipToolFromHotbar"]:FireServer(1)
+    local rEquip = findRemote("RE/EquipToolFromHotbar")
+    if rEquip then
+        pcall(function() rEquip:FireServer(1) end)
+    end
 end
- 
+
 -- Dropdown Pilihan Mode
 TabFarm:CreateDropdown({
     Name = "Select Mode 🎛️",
-    Options = {"Slow", "Fast"},
+    Options = {"Slow 🐌", "Fast ⚡"},
     CurrentOption = {},
     Callback = function(Option)
         selectedMode = type(Option) == "table" and Option[1] or Option
@@ -293,7 +467,7 @@ TabFarm:CreateDropdown({
         end
     end
 })
- 
+
 -- Toggle Auto Fishing
 TabFarm:CreateToggle({
     Name = "Auto Fishing 🐟",
@@ -310,18 +484,27 @@ TabFarm:CreateToggle({
                 running = false
                 return
             end
+
             equipRod()
+
+            if animTracks and animTracks.idle then
+                animTracks.idle.Looped = true
+                animTracks.idle:Play()
+            end
+
             if selectedMode == "Slow 🐌" then
                 task.spawn(fishSlow)
             elseif selectedMode == "Fast ⚡" then
                 task.spawn(fishFast)
             end
+
             Rayfield:Notify({
                 Title = "Auto Fishing 🎣",
                 Content = "Dimulai dengan mode: " .. selectedMode,
                 Duration = 1
             })
         else
+            stopAllAnimations()
             Rayfield:Notify({
                 Title = "Auto Fishing 🎣",
                 Content = "Dihentikan!",
@@ -1030,4 +1213,11 @@ TabUtility:CreateToggle({
             removeFollowPlatform()
         end
     end
+})
+
+-- ====== PENUTUP ======
+Rayfield:Notify({
+    Title = "EmeCRT Fish It 🐟",
+    Content = "Script Loaded Successfully ✅",
+    Duration = 2
 })
