@@ -16,7 +16,7 @@ Rayfield:Notify({
     Content = "Lagi Loading",
     Duration = 3
 })
- 
+ ini
 -- Window Utama
 local Window = Rayfield:CreateWindow({
     Name = "EmeCRT Fish It 🐟",
@@ -243,11 +243,11 @@ local function autoSellCheck()
 end
  
 local function fishSlow()
-    task.wait(2)
+    task.wait(3)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
         task.wait(0.5)
-        Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
+        Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1.3)
         task.wait(1 + math.random() * 1)
         Net["RE/FishingCompleted"]:FireServer()
  
@@ -258,17 +258,17 @@ local function fishSlow()
 end
  
 local function fishFast()
-    task.wait(1)
+    task.wait(2)
     while running do
         Net["RF/ChargeFishingRod"]:InvokeServer(tick())
         task.wait(0.02)
-        Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1)
-        task.wait(0.55 + math.random() * 0.45)
+        Net["RF/RequestFishingMinigameStarted"]:InvokeServer(-1 + math.random(), 1.3)
+        task.wait(0.46 + math.random() * 0.24)
         Net["RE/FishingCompleted"]:FireServer()
  
         currentFishCount = currentFishCount + 1
         autoSellCheck()
-        task.wait(0.1)
+        task.wait(0.25)
     end
 end
  
@@ -280,7 +280,7 @@ end
 -- Dropdown Pilihan Mode
 TabFarm:CreateDropdown({
     Name = "Select Mode 🎛️",
-    Options = {"Slow 🐌", "Fast ⚡"},
+    Options = {"Slow", "Fast"},
     CurrentOption = {},
     Callback = function(Option)
         selectedMode = type(Option) == "table" and Option[1] or Option
@@ -1029,103 +1029,5 @@ TabUtility:CreateToggle({
         else
             removeFollowPlatform()
         end
-    end
-})
- 
--- ===== Ultra Low Texture Scanner (Auto Update) =====
-local ultraLowEnabled = false
-local savedStates = {}
-local scanConnection = nil
- 
--- Simpan property dengan aman
-local function saveState(obj, prop, value)
-    if not savedStates[obj] then savedStates[obj] = {} end
-    if savedStates[obj][prop] == nil then
-        savedStates[obj][prop] = value
-    end
-end
- 
--- Terapkan ultra low
-local function applyUltraLow(obj)
-    if obj:IsA("Decal") or obj:IsA("Texture") then
-        saveState(obj, "Transparency", obj.Transparency)
-        pcall(function() obj.Transparency = 1 end)
- 
-    elseif obj:IsA("MeshPart") then
-        saveState(obj, "TextureID", obj.TextureID)
-        saveState(obj, "Material", obj.Material)
-        pcall(function() obj.TextureID = "" end)
-        pcall(function() obj.Material = Enum.Material.Plastic end)
- 
-    elseif obj:IsA("SpecialMesh") or obj:IsA("Mesh") then
-        saveState(obj, "TextureId", obj.TextureId)
-        pcall(function() obj.TextureId = "" end)
- 
-    elseif obj:IsA("BasePart") then
-        saveState(obj, "Material", obj.Material)
-        pcall(function() obj.Material = Enum.Material.Plastic end)
-    end
-end
- 
--- Restore state
-local function restoreUltraLow(obj)
-    if savedStates[obj] then
-        for prop, val in pairs(savedStates[obj]) do
-            if obj and obj.Parent ~= nil then
-                pcall(function() obj[prop] = val end)
-            end
-        end
-        savedStates[obj] = nil
-    end
-end
- 
--- Aktifkan/Nonaktifkan Scanner
-local function setUltraLowMode(enable)
-    ultraLowEnabled = enable
-    if enable then
-        -- Apply langsung ke semua object yang sudah ada
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            applyUltraLow(obj)
-        end
- 
-        -- Auto-scan untuk object baru / update lokasi
-        scanConnection = workspace.DescendantAdded:Connect(function(obj)
-            if ultraLowEnabled then
-                applyUltraLow(obj)
-            end
-        end)
- 
-        Rayfield:Notify({
-            Title = "Ultra Low Scanner",
-            Content = "Scanner aktif ✅ (otomatis deteksi texture)",
-            Duration = 3
-        })
-    else
-        -- Matikan scanner
-        if scanConnection then
-            scanConnection:Disconnect()
-            scanConnection = nil
-        end
- 
-        -- Kembalikan semua object
-        for obj, _ in pairs(savedStates) do
-            restoreUltraLow(obj)
-        end
-        savedStates = {}
- 
-        Rayfield:Notify({
-            Title = "Ultra Low Scanner",
-            Content = "Scanner nonaktif ❌ (kembali normal)",
-            Duration = 3
-        })
-    end
-end
- 
--- Toggle UI
-TabUtility:CreateToggle({
-    Name = "Ultra Low Scanner 🟦",
-    CurrentValue = false,
-    Callback = function(Value)
-        setUltraLowMode(Value)
     end
 })
