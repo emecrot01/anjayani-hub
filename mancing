@@ -378,7 +378,7 @@ end
 
 -- Fungsi mancing slow (tanpa animasi cast/wait/idle)
 local function fishSlow()
-	task.wait(2)
+	task.wait(1)
 	while running do
 		if not Net then break end
 		pcall(function()
@@ -386,7 +386,7 @@ local function fishSlow()
 
 			local rCharge = findRemote("RF/ChargeFishingRod")
 			if rCharge then pcall(function() rCharge:InvokeServer(tick()) end) end
-			task.wait(0.5)
+			task.wait(1)
 
 			local rStart = findRemote("RF/RequestFishingMinigameStarted")
 			if rStart then pcall(function() rStart:InvokeServer(-1 + math.random(), 1) end) end
@@ -405,7 +405,7 @@ end
 
 -- Fungsi mancing fast (tanpa animasi cast/wait/idle)
 local function fishFast()
-	task.wait(2)
+	task.wait(0.5)
 	while running do
 		if not Net then break end
 		pcall(function()
@@ -413,11 +413,11 @@ local function fishFast()
 
 			local rCharge = findRemote("RF/ChargeFishingRod")
 			if rCharge then pcall(function() rCharge:InvokeServer(tick()) end) end
-			task.wait(0.02)
+			task.wait(0.5)
 
 			local rStart = findRemote("RF/RequestFishingMinigameStarted")
 			if rStart then pcall(function() rStart:InvokeServer(-1 + math.random(), 1.3) end) end
-			task.wait(0.56 + math.random() * 0.24)
+			task.wait(2 + math.random() * 3.5)
 
 			if animTracks and animTracks.reel then animTracks.reel:Play() end
 			local rComplete = findRemote("RE/FishingCompleted")
@@ -426,7 +426,7 @@ local function fishFast()
 			currentFishCount += 1
 			autoSellCheck()
 		end)
-		task.wait(0.3)
+		task.wait(1, 2.5)
 	end
 end
 
