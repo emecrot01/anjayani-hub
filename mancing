@@ -316,6 +316,15 @@ local function loadAnimations()
 	animTracks = newTracks
 end
 
+-- Hentikan semua animasi
+local function stopAllAnimations()
+	for _, track in pairs(animTracks) do
+		if track.IsPlaying then
+			track:Stop(0)
+		end
+	end
+end
+
 -- Auto reload animasi saat respawn
 LocalPlayer.CharacterAdded:Connect(function()
 	task.wait(1)
@@ -364,56 +373,52 @@ local function autoSellCheck()
 	end
 end
 
--- Fungsi mancing slow
-local function fishSlow()
-	task.wait(1)
+-- Fungsi mancing (umum)
+local function fishCycle(chargeDelay, startDelay)
+	task.wait(chargeDelay)
 	while running do
 		if not Net then break end
 		pcall(function()
+			-- Charge rod
 			local rCharge = findRemote("RF/ChargeFishingRod")
 			if rCharge then pcall(function() rCharge:InvokeServer(tick()) end) end
-			task.wait(1)
+			task.wait(chargeDelay)
 
+			-- Start minigame
 			local rStart = findRemote("RF/RequestFishingMinigameStarted")
 			if rStart then pcall(function() rStart:InvokeServer(-1 + math.random(), 1) end) end
-			task.wait(3 + math.random() * 5)
+			task.wait(startDelay + math.random() * startDelay)
 
-			ensureAnimPlay("reel")
+			-- Animasi reel (hanya untuk visual)
+			if running then
+				ensureAnimPlay("reel")
+			end
 
+			-- Complete minigame
 			local rComplete = findRemote("RE/FishingCompleted")
 			if rComplete then pcall(function() rComplete:FireServer() end) end
 
+			-- Update count dan auto sell
 			currentFishCount += 1
 			autoSellCheck()
 		end)
-		task.wait(1)
+
+		-- Delay antar cycle
+		task.wait(chargeDelay)
 	end
+
+	-- Stop animasi setelah loop selesai
+	stopAllAnimations()
+end
+
+-- Fungsi mancing slow
+local function fishSlow()
+	fishCycle(1, 3)
 end
 
 -- Fungsi mancing fast
 local function fishFast()
-	task.wait(0.5)
-	while running do
-		if not Net then break end
-		pcall(function()
-			local rCharge = findRemote("RF/ChargeFishingRod")
-			if rCharge then pcall(function() rCharge:InvokeServer(tick()) end) end
-			task.wait(0.5)
-
-			local rStart = findRemote("RF/RequestFishingMinigameStarted")
-			if rStart then pcall(function() rStart:InvokeServer(-1 + math.random(), 1) end) end
-			task.wait(1.5 + math.random() * 2.5)
-
-			ensureAnimPlay("reel")
-
-			local rComplete = findRemote("RE/FishingCompleted")
-			if rComplete then pcall(function() rComplete:FireServer() end) end
-
-			currentFishCount += 1
-			autoSellCheck()
-		end)
-		task.wait(0.5)
-	end
+	fishCycle(0.5, 1.5)
 end
 
 -- Equip Rod
@@ -472,11 +477,12 @@ TabFarm:CreateToggle({
 				Duration = 1
 			})
 		else
+			-- Animasi berhenti tapi cycle tetap menyelesaikan ikan yang sedang jalan
 			stopAllAnimations()
 			Rayfield:Notify({
 				Title = "Auto Fishing 🎣",
-				Content = "Dihentikan!",
-				Duration = 1
+				Content = "Dihentikan (animasi berhenti, cycle selesai)!",
+				Duration = 2
 			})
 		end
 	end
