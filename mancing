@@ -257,7 +257,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     end
 end)
 
--- ========== AUTO FISHING ==========
+-- ========== AUTO FISHING (ANTI ANIM CRASH) ==========
 TabFarm:CreateSection("Automatic Fishing 🎣")
 
 -- Variabel utama
@@ -265,10 +265,9 @@ local running = false
 local currentFishCount = 0
 local autoSellActive = false
 local targetFishCount = 0
+local selectedMode = nil
 local animTracks = {}
 local isReloadingAnim = false
-local LocalPlayer = game:GetService("Players").LocalPlayer
-local Net = workspace:FindFirstChild("RemoteFolder") -- ganti sesuai nama folder Remote
 
 -- Remote references
 local function findRemote(name)
@@ -285,6 +284,11 @@ local animations = {
 	reel = "rbxassetid://134965425664034"
 }
 
+-- Pastikan LocalPlayer siap
+if not LocalPlayer then
+	repeat task.wait() LocalPlayer = game:GetService("Players").LocalPlayer until LocalPlayer
+end
+
 -- 🧠 Get Animator
 local function getAnimator()
 	local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -297,28 +301,29 @@ end
 -- 🧩 Load Animasi
 local function loadAnimations()
 	local animator = getAnimator()
-	if not animator then return end
+	if not animator then return nil end
 	local newTracks = {}
 	for name, id in pairs(animations) do
-		pcall(function()
+		local success, anim = pcall(function()
 			local animation = Instance.new("Animation")
 			animation.AnimationId = id
-			local track = animator:LoadAnimation(animation)
-			track.Looped = true
-			newTracks[name] = track
+			return animator:LoadAnimation(animation)
 		end)
+		if success and anim then
+			newTracks[name] = anim
+		end
 	end
 	animTracks = newTracks
 end
 
 -- Auto reload animasi saat respawn
 LocalPlayer.CharacterAdded:Connect(function()
-	task.wait(0.5)
+	task.wait(1)
 	loadAnimations()
 end)
 
--- ✅ Fungsi pastikan animasi selalu jalan
-local function ensureAnim(name)
+-- ✅ Fungsi pastikan animasi valid & auto reload
+local function ensureAnimPlay(name)
 	if isReloadingAnim then return end
 	if not animTracks[name] or not animTracks[name].IsPlaying then
 		isReloadingAnim = true
@@ -332,13 +337,12 @@ local function ensureAnim(name)
 			end
 		end)
 	else
-		if not animTracks[name].IsPlaying then
-			animTracks[name]:Play()
-		end
+		animTracks[name]:Stop(0)
+		animTracks[name]:Play()
 	end
 end
 
--- Auto sell
+-- Fungsi auto sell
 local function autoSellCheck()
 	if autoSellActive and SellAllRemote and targetFishCount > 0 and currentFishCount >= targetFishCount then
 		task.spawn(function()
@@ -374,7 +378,7 @@ local function fishSlow()
 			if rStart then pcall(function() rStart:InvokeServer(-1 + math.random(), 1) end) end
 			task.wait(3 + math.random() * 5)
 
-			ensureAnim("reel")
+			ensureAnimPlay("reel")
 
 			local rComplete = findRemote("RE/FishingCompleted")
 			if rComplete then pcall(function() rComplete:FireServer() end) end
@@ -400,7 +404,7 @@ local function fishFast()
 			if rStart then pcall(function() rStart:InvokeServer(-1 + math.random(), 1) end) end
 			task.wait(1.5 + math.random() * 2.5)
 
-			ensureAnim("reel")
+			ensureAnimPlay("reel")
 
 			local rComplete = findRemote("RE/FishingCompleted")
 			if rComplete then pcall(function() rComplete:FireServer() end) end
@@ -419,16 +423,6 @@ local function equipRod()
 		pcall(function() rEquip:FireServer(1) end)
 	end
 end
-
--- 🔄 Loop tambahan: force play animasi setiap 0.5 detik
-task.spawn(function()
-	while true do
-		if running then
-			pcall(function() ensureAnim("reel") end)
-		end
-		task.wait(0.5)
-	end
-end)
 
 -- Dropdown Pilihan Mode
 TabFarm:CreateDropdown({
