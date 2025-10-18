@@ -76,23 +76,20 @@ end)
 -- TAB 2: Auto Farm ⛏️
 local TabFarm = Window:CreateTab("Auto Farm ⛏️")
 
--- // Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- // Helpers
 local function character() return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait() end
 local function HRP() local c=character() return c and c:FindFirstChild("HumanoidRootPart") end
 local function Humanoid() local c=character() return c and c:FindFirstChildOfClass("Humanoid") end
 
--- // State
 local savedSandCF, savedWaterCF = nil, nil
 local autoFarm, autoHelper = false, false
-local autoFarmWalkSpeed = 26 -- WalkSpeed tetap
+local autoFarmWalkSpeed = 26
 
--- // Utils
 local function notify(title, content, dur)
     Rayfield:Notify({Title=title, Content=content, Duration=dur or 2})
 end
@@ -103,7 +100,7 @@ end
 
 local function getTool()
     local c=character()
-    return c and c:FindFirstChildOfClass("Tool")
+    return c and c:FindFirstChildOfClass("Tool") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
 end
 
 local function getCapacity()
@@ -138,7 +135,6 @@ local function callRemote(remote, ...)
     return ok and true or false
 end
 
--- // Movement
 local function moveTo(cf)
     local hum = Humanoid()
     if not hum or not cf then return end
@@ -149,7 +145,6 @@ local function moveTo(cf)
     while not done and tick()-t0<8 do randDelay(0.1,0.25) end
 end
 
--- // Farm Helpers
 local function ensurePanStarted(tool, tries, delay)
     tries, delay = tries or 10, delay or 0.1
     for _=1,tries do
@@ -189,7 +184,6 @@ local function shakeLoop()
     end
 end
 
--- // UI Buttons
 TabFarm:CreateButton({
     Name="Save Sand Position ⛱️",
     Callback=function()
@@ -206,7 +200,6 @@ TabFarm:CreateButton({
     end
 })
 
--- 🔥 Auto Farm Toggle
 TabFarm:CreateToggle({
     Name="Auto Farm ⛏️",
     CurrentValue=false,
@@ -218,7 +211,6 @@ TabFarm:CreateToggle({
         end
         notify("Auto Farm","Started ✅")
 
-        -- Loop cepat untuk jaga WalkSpeed 26
         task.spawn(function()
             while autoFarm do
                 local hum = Humanoid()
@@ -227,7 +219,6 @@ TabFarm:CreateToggle({
             end
         end)
 
-        -- Loop utama farming
         task.spawn(function()
             while autoFarm do
                 if not savedSandCF or not savedWaterCF then
@@ -253,13 +244,35 @@ TabFarm:CreateToggle({
                         end
                     end
                 end
+
                 randDelay(0.05,0.15)
+            end
+        end)
+
+        -- Safe Auto-Equip Pan Slot 1 (CD 2 detik)
+        task.spawn(function()
+            while autoFarm do
+                task.wait(5)
+                local c = character()
+                local panInHand = false
+
+                for _, tool in pairs(c:GetChildren()) do
+                    if tool:IsA("Tool") and tool.Name:lower():find("pan") then
+                        panInHand = true
+                        break
+                    end
+                end
+
+                if not panInHand then
+                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, game)
+                    task.wait(0.05)
+                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, game)
+                end
             end
         end)
     end
 })
 
--- Helper toggle
 TabFarm:CreateToggle({
     Name="Auto Collect + Shake ⛏️💧",
     CurrentValue=false,
@@ -271,24 +284,25 @@ TabFarm:CreateToggle({
         end
         notify("Auto Collect + Shake","Activate ✅")
         task.spawn(function()
-            local lastPan=0
+            local lastPan = 0
             while autoHelper do
                 local tool, cap=getTool(), getCapacity()
                 local fill=getFill(tool)
                 if tool and cap and fill then
+                    local collect, panRemote, shake = getRemotes(tool)
+
                     if panIsActive() then
-                        local _,_,shake=getRemotes(tool)
                         if shake then callRemote(shake) end
                         randDelay(0.04,0.07)
+
                     elseif fill>=cap then
-                        if os.clock()-lastPan>0.4 then
-                            local _,pan=getRemotes(tool)
-                            if pan then callRemote(pan) end
-                            lastPan=os.clock()
+                        if os.clock() - lastPan > 0.4 then
+                            if panRemote then callRemote(panRemote) end
+                            lastPan = os.clock()
                         end
                         randDelay(0.1,0.2)
+
                     else
-                        local collect=select(1,getRemotes(tool))
                         if collect then callRemote(collect,1) end
                         randDelay(0.08,0.2)
                     end
@@ -1044,6 +1058,56 @@ TabMisc:CreateToggle({
                 coordGui, coordLabel, copyButton = nil, nil, nil
                 lastText = ""
             end
+        end
+    end
+})
+
+-- 🔦 Auto Flare Ultimate Loop (Slot 6 + Lempar)
+local autoFlareEnabled = false
+
+TabMisc:CreateToggle({
+    Name = "Auto Flare 🔦",
+    CurrentValue = false,
+    Callback = function(Value)
+        autoFlareEnabled = Value -- <-- update variabel global
+
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        local VIM = game:GetService("VirtualInputManager")
+        local VirtualUser = game:GetService("VirtualUser")
+        local SLOT_KEY = Enum.KeyCode.Six
+        local LOOP_COOLDOWN = 540 -- 9 menit
+
+        if Value then
+            Rayfield:Notify({Title="Auto Flare Aktif ✅", Content="Flare akan dilempar otomatis setiap 9 menit.", Duration=3})
+
+            task.spawn(function()
+                while autoFlareEnabled do
+                    task.wait(0.5)
+
+                    pcall(function()
+                        VIM:SendKeyEvent(true, SLOT_KEY, false, game)
+                        task.wait(0.03)
+                        VIM:SendKeyEvent(false, SLOT_KEY, false, game)
+                    end)
+
+                    task.wait(0.5)
+
+                    pcall(function()
+                        local viewport = workspace.CurrentCamera.ViewportSize
+                        local x, y = viewport.X / 2, viewport.Y / 2
+                        VirtualUser:CaptureController()
+                        VirtualUser:ClickButton1(Vector2.new(x, y))
+                    end)
+
+                    local t0 = tick()
+                    while autoFlareEnabled and tick() - t0 < LOOP_COOLDOWN do
+                        task.wait(0.5)
+                    end
+                end
+            end)
+        else
+            Rayfield:Notify({Title="Auto Flare Nonaktif ❌", Content="Sistem auto flare dimatikan.", Duration=2})
         end
     end
 })
