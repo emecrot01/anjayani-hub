@@ -16,7 +16,7 @@ local Window = Rayfield:CreateWindow({
     ConfigurationSaving = { Enabled = false }
 })
  
--- TAB 1: Home 🏠
+-- TAB Home 🏠
 local TabHome = Window:CreateTab("Home 🏠")
 TabHome:CreateLabel("Prospecting! 💎 v1.4 Remake")
 TabHome:CreateSection("Changelog")
@@ -81,7 +81,7 @@ task.spawn(function()
     end
 end)
 
--- TAB 2: Auto Farm ⛏️
+-- TAB Auto Farm ⛏️
 local TabFarm = Window:CreateTab("Auto Farm ⛏️")
 
 local Players = game:GetService("Players")
@@ -506,34 +506,44 @@ player.CharacterAdded:Connect(function(char)
     end
 end)
 
--- TAB 3: Auto Sell 💰
-local TabSell = Window:CreateTab("Auto Sell 💰")
+-- TAB Automation 🔄
+local TabSystem = Window:CreateTab("Automation 🔄")
 
--- Services & refs
+-- ===== Services =====
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
-local Backpack = LocalPlayer:WaitForChild("BackpackTwo") -- pake BackpackTwo
+local Backpack = LocalPlayer:WaitForChild("BackpackTwo")
 
--- Remote (HARUS InvokeServer)
+-- ===== Remotes =====
+local ToggleLockRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Inventory"):WaitForChild("ToggleLock")
 local SellItemRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellItem")
 
--- List rarity & state toggle
-local raritiesSell = {
-    {Name="Common",Emoji="⚪"},
-    {Name="Uncommon",Emoji="🟢"},
-    {Name="Rare",Emoji="🔵"},
-    {Name="Epic",Emoji="🟣"},
-    {Name="Legendary",Emoji="🟡"},
-    {Name="Mythic",Emoji="🔴"},
-    {Name="Exotic",Emoji="💎"},
+-- ===== Rarity list =====
+local rarities = {
+    {Name = "Common",    Emoji = "⚪"},
+    {Name = "Uncommon",  Emoji = "🟢"},
+    {Name = "Rare",      Emoji = "🔵"},
+    {Name = "Epic",      Emoji = "🟣"},
+    {Name = "Legendary", Emoji = "🟡"},
+    {Name = "Mythic",    Emoji = "🔴"},
+    {Name = "Exotic",    Emoji = "💎"},
 }
-local autoSellState = {}
-for _,r in ipairs(raritiesSell) do autoSellState[r.Name]=false end
 
--- ===== Queue + Anti-cheat layer =====
+-- ===== STATE =====
+local autoSellState = {}
+local autoLockState = {}
+local autoSellEnabled = false
+local autoLockEnabled = false
+
+for _, r in ipairs(rarities) do
+    autoSellState[r.Name] = false
+    autoLockState[r.Name] = false
+end
+
+-- ===== AUTO SELL SYSTEM =====
 local q = {head=1, tail=0, data={}}
-local queued = setmetatable({}, {__mode="k"}) -- weak keys (dedup)
+local queued = setmetatable({}, {__mode="k"})
 
 local function q_push(tool)
     if queued[tool] then return end
@@ -551,7 +561,6 @@ local function q_pop()
     return tool
 end
 
--- Delay system safe & cepat
 local SAFE_DELAY_ITEM_MIN, SAFE_DELAY_ITEM_MAX = 0.05, 0.3
 local SAFE_DELAY_SWEEP_MIN, SAFE_DELAY_SWEEP_MAX = 0.05, 0.2
 local WORKERS = 10
@@ -560,13 +569,12 @@ local MAX_PER_SWEEP = 15
 local function randDelayItem()
     task.wait(math.random(SAFE_DELAY_ITEM_MIN*1000, SAFE_DELAY_ITEM_MAX*1000)/1000)
 end
-
 local function randDelaySweep()
     task.wait(math.random(SAFE_DELAY_SWEEP_MIN*1000, SAFE_DELAY_SWEEP_MAX*1000)/1000)
 end
 
--- Validasi sebelum jual
 local function isSellable(tool)
+    if not autoSellEnabled then return false end
     if not tool or not tool.Parent then return false end
     if tool.Parent ~= Backpack then return false end
     if not tool:IsA("Tool") then return false end
@@ -577,7 +585,6 @@ local function isSellable(tool)
     return true
 end
 
--- Safe invoke sell
 local function safeInvokeSell(tool)
     if not isSellable(tool) then return false end
     local ok, res = pcall(function()
@@ -592,21 +599,20 @@ local function safeInvokeSell(tool)
     return ok and (res == true or res == "Success")
 end
 
--- Backpack event → auto masuk queue
 Backpack.ChildAdded:Connect(function(tool)
     if not tool or not tool:IsA("Tool") then return end
     task.delay(math.random(0,30)/100, function()
         local rarity = tool:GetAttribute("Rarity")
-        if rarity and autoSellState[rarity] then
+        if autoSellEnabled and rarity and autoSellState[rarity] then
             q_push(tool)
         end
     end)
 end)
 
--- Periodic backfill
 task.spawn(function()
     while true do
         task.wait(math.random(25,60)/100)
+        if not autoSellEnabled then continue end
         for _, tool in ipairs(Backpack:GetChildren()) do
             if tool:IsA("Tool") then
                 local rarity = tool:GetAttribute("Rarity")
@@ -618,188 +624,361 @@ task.spawn(function()
     end
 end)
 
--- Worker pool
 for i = 1, WORKERS do
     task.spawn(function()
         while true do
-            local queueLength = q.tail - q.head + 1
-            local takeN = math.min(MAX_PER_SWEEP, queueLength)
-            for _ = 1, takeN do
-                local tool = q_pop()
-                if not tool then break end
-                if isSellable(tool) then
-                    safeInvokeSell(tool)
-                    randDelayItem()
+            if autoSellEnabled then
+                local queueLength = q.tail - q.head + 1
+                local takeN = math.min(MAX_PER_SWEEP, queueLength)
+                for _ = 1, takeN do
+                    local tool = q_pop()
+                    if not tool then break end
+                    if isSellable(tool) then
+                        safeInvokeSell(tool)
+                        randDelayItem()
+                    end
                 end
+                randDelaySweep()
+            else
+                task.wait(0.2)
             end
-            randDelaySweep()
         end
     end)
 end
 
--- UI: Toggle per rarity
-for _, r in ipairs(raritiesSell) do
-    TabSell:CreateToggle({
-        Name = r.Emoji .. " Auto Sell " .. r.Name,
-        CurrentValue = false,
-        Callback = function(state)
-            autoSellState[r.Name] = state
-        end
-    })
-end
-
--- TAB 4: Auto Lock 🔒
-local TabLock = Window:CreateTab("Auto Lock 🔒")
- 
--- Services
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
- 
-local LocalPlayer = Players.LocalPlayer
-local Backpack = LocalPlayer:WaitForChild("BackpackTwo")
- 
--- Remote
-local ToggleLockRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Inventory"):WaitForChild("ToggleLock")
- 
--- Rarity list khusus Lock
-local raritiesLock = {
-    {Name = "Common",    Emoji = "⚪"},
-    {Name = "Uncommon",  Emoji = "🟢"},
-    {Name = "Rare",      Emoji = "🔵"},
-    {Name = "Epic",      Emoji = "🟣"},
-    {Name = "Legendary", Emoji = "🟡"},
-    {Name = "Mythic",    Emoji = "🔴"},
-    {Name = "Exotic",    Emoji = "💎"},
-}
- 
--- State lock toggle
-local autoLockState = {}
-for _, r in ipairs(raritiesLock) do
-    autoLockState[r.Name] = false
-end
- 
--- Random delay helper (0.20–0.35 s)
+-- ===== AUTO LOCK SYSTEM =====
 local function rand_delay()
     task.wait(math.random(20, 35) / 100)
 end
- 
--- Queue + Workers
+
 local lockQueue = {}
 local function queueLock(item)
+    if not autoLockEnabled then return end
     if not item or not item:IsA("Tool") then return end
     if item.Parent ~= Backpack then return end
- 
     local rarity = item:GetAttribute("Rarity")
     local isLocked = item:GetAttribute("Locked")
- 
-    -- Masukin queue hanya kalau: rarity aktif & item belum locked
     if rarity and autoLockState[rarity] and (isLocked == false or isLocked == nil) then
         table.insert(lockQueue, item)
     end
 end
- 
+
 local MAX_WORKERS = 3
 local function worker()
     while true do
-        local item = table.remove(lockQueue, 1)
-        if item and item:IsDescendantOf(Backpack) then
-            pcall(function()
-                ToggleLockRemote:FireServer(item)
-            end)
-            rand_delay() -- tunggu 0.20–0.35 detik
+        if autoLockEnabled then
+            local item = table.remove(lockQueue, 1)
+            if item and item:IsDescendantOf(Backpack) then
+                pcall(function()
+                    ToggleLockRemote:FireServer(item)
+                end)
+                rand_delay()
+            else
+                task.wait(0.1)
+            end
         else
-            task.wait(0.1)
+            task.wait(0.2)
         end
     end
 end
 for i = 1, MAX_WORKERS do
     task.spawn(worker)
 end
- 
--- Events
+
 Backpack.ChildAdded:Connect(function(tool)
     task.wait(0.1)
     queueLock(tool)
- 
     tool.AttributeChanged:Connect(function(attr)
-        if attr == "Locked" then
-            -- Tambah ke queue hanya kalau kembali jadi unlocked
-            if tool:GetAttribute("Locked") == false then
-                queueLock(tool)
-            end
+        if attr == "Locked" and tool:GetAttribute("Locked") == false then
+            queueLock(tool)
         end
     end)
 end)
- 
--- Sweep isi backpack berkala (re-lock jika perlu)
+
 task.spawn(function()
     while true do
-        for _, tool in ipairs(Backpack:GetChildren()) do
-            queueLock(tool)
+        if autoLockEnabled then
+            for _, tool in ipairs(Backpack:GetChildren()) do
+                queueLock(tool)
+            end
         end
-        task.wait(5) -- sweeping tiap 5 detik
+        task.wait(5)
     end
 end)
- 
--- ==== UI (URUTAN SESUAI PERMINTAAN)
- 
--- 1) local section: Lock Ore 💎
-local SectionLockOre = TabLock:CreateSection("Lock Ore 💎")
- 
--- 2) lock system (toggle Common → Exotic)
-for _, r in ipairs(raritiesLock) do
-    TabLock:CreateToggle({
-        Name = r.Emoji .. " Auto Lock " .. r.Name,
-        CurrentValue = false,
-        Callback = function(state)
-            autoLockState[r.Name] = state
-            if state then
-                -- Saat toggle diaktifkan, langsung scan backpack
-                for _, tool in ipairs(Backpack:GetChildren()) do
-                    queueLock(tool)
-                end
+
+-- ===== UI SECTIONS =====
+TabSystem:CreateSection("Auto Lock 🔒")
+
+local LockDropdown = TabSystem:CreateDropdown({
+    Name = "Select Lock Items",
+    Options = {
+        "⚪ Common",
+        "🟢 Uncommon",
+        "🔵 Rare",
+        "🟣 Epic",
+        "🟡 Legendary",
+        "🔴 Mythic",
+        "💎 Exotic"
+    },
+    CurrentOption = {},
+    MultipleOptions = true,
+    Callback = function(Options)
+        for _, r in ipairs(rarities) do
+            autoLockState[r.Name] = table.find(Options, r.Emoji .. " " .. r.Name) ~= nil
+        end
+        if autoLockEnabled then
+            for _, tool in ipairs(Backpack:GetChildren()) do
+                queueLock(tool)
             end
         end
-    })
+    end
+})
+
+TabSystem:CreateToggle({
+    Name = "Auto Lock",
+    CurrentValue = false,
+    Callback = function(Value)
+        autoLockEnabled = Value
+    end
+})
+
+TabSystem:CreateSection("Auto Sell 💰")
+
+local SellDropdown = TabSystem:CreateDropdown({
+    Name = "Select Sell Items",
+    Options = {
+        "⚪ Common",
+        "🟢 Uncommon",
+        "🔵 Rare",
+        "🟣 Epic",
+        "🟡 Legendary",
+        "🔴 Mythic",
+        "💎 Exotic"
+    },
+    CurrentOption = {},
+    MultipleOptions = true,
+    Callback = function(Options)
+        for _, r in ipairs(rarities) do
+            autoSellState[r.Name] = table.find(Options, r.Emoji .. " " .. r.Name) ~= nil
+        end
+    end
+})
+
+TabSystem:CreateToggle({
+    Name = "Auto Sell",
+    CurrentValue = false,
+    Callback = function(Value)
+        autoSellEnabled = Value
+    end
+})
+
+-- ===== TAB WEBHOOKS 🌐 =====
+local WebhookTab = Window:CreateTab("Webhooks 🌐")
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+local Backpack = LocalPlayer:WaitForChild("BackpackTwo")
+
+local req = (syn and syn.request) or (http and http.request) or request
+if not req then
+    warn("[Webhook] Eksploit kamu tidak support HTTP Request.")
 end
- 
--- 3) local section: Unlock System 🔓
-local SectionUnlock = TabLock:CreateSection("Unlock System 🔓")
- 
--- 4) unlock all (fitur bawaan script)
-TabLock:CreateButton({
-    Name = "Unlock All 🔓",
-    Callback = function()
-        local unlocked = 0
-        for _, item in ipairs(Backpack:GetChildren()) do
-            if item:IsA("Tool") and item:GetAttribute("Locked") then
-                pcall(function()
-                    ToggleLockRemote:FireServer(item)
-                    unlocked += 1
-                end)
-                task.wait(0.05)
+
+-- ===== STATE =====
+local WebhookEnabled = false
+local WebhookURL = "https://discord.com/api/webhooks/1435819964530561225/LTYJQFSGU0SMeGRgxMfJLZtZpPF4SLv1wyIOK-BQ5n-KfC0gliHMameVXzPLEC71Fy1U"
+local SelectedRarity = {} -- dropdown awal kosong
+
+-- ===== DATA ORE + GAMBAR (lengkap) =====
+local OreData = {
+    ["⚪ Common"] = {
+        {Name="Pyrite",Price=500},{Name="Silver",Price=700},{Name="Copper",Price=800},{Name="Gold",Price=1000},
+        {Name="Blue Ice",Price=1500},{Name="Platinum",Price=2000},{Name="Seashell",Price=2200},{Name="Obsidian",Price=3000},
+        {Name="Amethyst",Price=3500},{Name="Pearl",Price=5000}
+    },
+    ["🟢 Uncommon"] = {
+        {Name="Titanium",Price=7500},{Name="Neodymium",Price=10000},{Name="Glowberry",Price=12000},{Name="Topaz",Price=14000},
+        {Name="Smoky Quartz",Price=16000},{Name="Malachite",Price=18000},{Name="Coral",Price=23000},{Name="Sapphire",Price=25000},
+        {Name="Zircon",Price=25000},{Name="Electrum",Price=13000},{Name="Rock Candy",Price=15000}
+    },
+    ["🔵 Rare"] = {
+        {Name="Ruby",Price=30000},{Name="Lapis Lazuli",Price=40000},{Name="Jade",Price=40000},{Name="Silver Clamshell",Price=50000},
+        {Name="Peridot",Price=60000},{Name="Onyx",Price=75000},{Name="Meteoric Iron",Price=80000},{Name="Glacial Quartz",Price=100000},
+        {Name="Amber",Price=110000},{Name="Azuralite",Price=120000},{Name="Pyrelith",Price=150000},{Name="Gloomberry",Price=80000},
+        {Name="Diopside",Price=99000}
+    },
+    ["🟣 Epic"] = {
+        {Name="Iridium",Price=150000},{Name="Glowmoss",Price=175000},{Name="Moonstone",Price=200000},{Name="Ammonite Fossil",Price=200000},
+        {Name="Ashvein",Price=222000},{Name="Pyronium",Price=226000},{Name="Emerald",Price=250000},{Name="Golden Pearl",Price=250000},
+        {Name="Cobalt",Price=250000},{Name="Borealite",Price=280000},{Name="Osmium",Price=300000},{Name="Lightshard",Price=300000},
+        {Name="Opal",Price=325000},{Name="Aurorite",Price=444444},{Name="Bone",Price=200000},{Name="Mercury",Price=450000}
+    },
+    ["🟡 Legendary"] = {
+        {Name="Rose Gold",Price=500000},{Name="Palladium",Price=500000},{Name="Cinnabar",Price=900000},{Name="Diamond",Price=1000000},
+        {Name="Uranium",Price=1500000},{Name="Luminum",Price=1500000},{Name="Catseye",Price=2222222},{Name="Starshine",Price=2500000},
+        {Name="Specterite",Price=2800000},{Name="Tourmaline",Price=2888000},{Name="Aquamarine",Price=4000000},{Name="Aetherite",Price=4444444},
+        {Name="Volcanic Key",Price=1500000},{Name="Firefly Stone",Price=1500000},{Name="Fire Opal",Price=1600000},{Name="Dragon Bone",Price=2000000},
+        {Name="Bismuth",Price=2600000},{Name="Lost Soul",Price=6666666}
+    },
+    ["🔴 Mythic"] = {
+        {Name="Pink Diamond",Price=6000000},{Name="Painite",Price=10000000},{Name="Inferlume",Price=14000000},{Name="Vortessence",Price=20000000},
+        {Name="Mythril",Price=20000000},{Name="Chrysoberyl",Price=21000000},{Name="Prismara",Price=25000000},{Name="Flarebloom",Price=30000000},
+        {Name="Volcanic Core",Price=40000000},{Name="Radiant Gold",Price=40000000},{Name="Frostshard",Price=50000000},{Name="Star Garnet",Price=44000000}
+    },
+    ["💎 Exotic"] = {
+        {Name="Dinosaur Skull",Price=50000000,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Dinosaur_Skullhd.png"},
+        {Name="Cryonic Artifact",Price=100000000,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Cryonic_Artifacthd.png"},
+        {Name="Voidstone",Price=111111111,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Voidstonehd.png"},
+        {Name="Umbrite",Price=180000000,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Umbriteindi.png"},
+        {Name="Vineheart",Price=125000000,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Vinehearthd.png"},
+        {Name="Bloodstone",Price=250000000,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/bloodstonehd.png"},
+        {Name="Pumpkin Soul",Price=40000000,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/PumpkinSoulhd.png"}
+    }
+}
+
+local function GetOreData(name)
+    for rarity, list in pairs(OreData) do
+        for _, data in ipairs(list) do
+            if data.Name == name then
+                return data, rarity
             end
         end
-        Rayfield:Notify({
-            Title = "Unlock All",
-            Content = string.format("%d item(s) unlocked.", unlocked),
-            Duration = 3
+    end
+end
+
+-- ===== FUNCTION CHECK RARITY TERPILIH =====
+local function IsRaritySelected(tool)
+    local rarity = tool:GetAttribute("Rarity")
+    if not rarity then return false end
+    local formatted = ""
+    for _, r in ipairs({
+        {Name="Common", Emoji="⚪"},
+        {Name="Uncommon", Emoji="🟢"},
+        {Name="Rare", Emoji="🔵"},
+        {Name="Epic", Emoji="🟣"},
+        {Name="Legendary", Emoji="🟡"},
+        {Name="Mythic", Emoji="🔴"},
+        {Name="Exotic", Emoji="💎"}
+    }) do
+        if r.Name == rarity then
+            formatted = r.Emoji.." "..r.Name
+            break
+        end
+    end
+    return table.find(SelectedRarity, formatted) ~= nil
+end
+
+-- ===== FUNCTION SEND WEBHOOK =====
+local function SendWebhook(tool)
+    if not WebhookEnabled or WebhookURL == "" or not req then return end
+    if not IsRaritySelected(tool) then return end
+
+    local data = GetOreData(tool.Name)
+    if not data then return end
+    data = data[1] or data
+
+    local rarity = tool:GetAttribute("Rarity")
+    local formatted = ""
+    for _, r in ipairs({
+        {Name="Common", Emoji="⚪"},
+        {Name="Uncommon", Emoji="🟢"},
+        {Name="Rare", Emoji="🔵"},
+        {Name="Epic", Emoji="🟣"},
+        {Name="Legendary", Emoji="🟡"},
+        {Name="Mythic", Emoji="🔴"},
+        {Name="Exotic", Emoji="💎"}
+    }) do
+        if r.Name == rarity then
+            formatted = r.Emoji.." "..r.Name
+            break
+        end
+    end
+
+    local embed = {
+        title = "📦 Item Baru Diperoleh!",
+        description = string.format("**Nama:** %s\n**Rarity:** %s\n**Harga:** `$%s/kg`", data.Name, formatted, data.Price),
+        color = 0x1abc9c,
+        footer = { text = "Anjayani Hub X Mammoth King👑" }
+    }
+    if data.Image then
+        embed.thumbnail = { url = data.Image }
+    end
+
+    local body = {
+        username = "Prospecting Bot 💎",
+        embeds = { embed }
+    }
+
+    pcall(function()
+        req({
+            Url = WebhookURL,
+            Method = "POST",
+            Headers = {["Content-Type"]="application/json"},
+            Body = HttpService:JSONEncode(body)
         })
+    end)
+end
+
+-- ===== CONNECT INVENTORY (Hanya rarity yang dipilih) =====
+Backpack.ChildAdded:Connect(function(tool)
+    if not tool:IsA("Tool") then return end
+    task.wait(0.05) -- tunggu atribut ter-set
+    if IsRaritySelected(tool) then
+        SendWebhook(tool)
+    end
+end)
+
+-- ===== UI =====
+WebhookTab:CreateDropdown({
+    Name = "Pilih Rarity ✅",
+    Options = {"⚪ Common","🟢 Uncommon","🔵 Rare","🟣 Epic","🟡 Legendary","🔴 Mythic","💎 Exotic"},
+    CurrentOption = {}, -- awal kosong, None
+    MultipleOptions = true,
+    Callback = function(options)
+        SelectedRarity = options
+    end
+})
+
+WebhookTab:CreateToggle({
+    Name = "Aktifkan Webhooks 🟢",
+    CurrentValue = false, -- awal OFF
+    Callback = function(val)
+        WebhookEnabled = val
+    end
+})
+
+WebhookTab:CreateButton({
+    Name = "Test Webhooks 🔗",
+    Callback = function()
+        if WebhookURL == "" then return end
+        pcall(function()
+            req({
+                Url = WebhookURL,
+                Method = "POST",
+                Headers = {["Content-Type"]="application/json"},
+                Body = HttpService:JSONEncode({
+                    username="Prospecting Bot 💎",
+                    content="✅ Webhook Berhasil Terhubung!"
+                })
+            })
+        end)
     end
 })
 
 -- ==== TAB SHOP ====
 local TabShop = Window:CreateTab("Shop 🏪")
 
--- ✦ SECTION: Traveling Merchant
-TabShop:CreateSection("Traveling Merchant")
+-- ✦ LABEL: Traveling Merchant
+TabShop:CreateLabel("Traveling Merchant 👳🛒")
 
--- Services
+-- ✦ SERVICES
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local ShopRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem")
 
--- ===== Fungsi Beli Item =====
+-- ===== FUNGSI BELI ITEM =====
 local function buyItem(item)
 	if not item or not item:FindFirstChild("ShopItem") then return end
 	pcall(function()
@@ -807,7 +986,7 @@ local function buyItem(item)
 	end)
 end
 
--- ===== Deteksi Jenis Harga =====
+-- ===== DETEKSI JENIS HARGA =====
 local function getPriceType(item)
 	if not item:FindFirstChild("ShopItem") then return "Unknown" end
 
@@ -821,7 +1000,7 @@ local function getPriceType(item)
 	end
 end
 
--- ===== Data Item =====
+-- ===== DATA ITEM =====
 local itemList = {
 	"Perfect Reforge Token",
 	"Void Shard",
@@ -834,16 +1013,15 @@ local itemList = {
 	"Blitz Potion"
 }
 
--- ===== Variabel Global =====
+-- ===== VARIABEL GLOBAL =====
 local selectedMoneyItems = {}
 local selectedShardItems = {}
 local autoBuyMoney = false
 local autoBuyShards = false
 
-TabShop:CreateLabel("────────────────────────────────────────────────")
+-- ✦ SECTION: MONEY
 TabShop:CreateSection("Money 💰")
 
--- ===== DROPDOWN + TOGGLE (MONEY) =====
 local DropdownMoney = TabShop:CreateDropdown({
 	Name = "Select Items ✅",
 	Options = itemList,
@@ -863,10 +1041,9 @@ TabShop:CreateToggle({
 	end
 })
 
-TabShop:CreateLabel("────────────────────────────────────────────────")
+-- ✦ SECTION: SHARD
 TabShop:CreateSection("Shard 💠")
 
--- ===== DROPDOWN + TOGGLE (SHARDS) =====
 local DropdownShards = TabShop:CreateDropdown({
 	Name = "Select Items ✅",
 	Options = itemList,
@@ -886,10 +1063,7 @@ TabShop:CreateToggle({
 	end
 })
 
-TabShop:CreateLabel("────────────────────────────────────────────────")
-TabShop:CreateSection("Auto Purchase System")
-
--- ===== LOOP PEMBELIAN =====
+-- ===== AUTO PURCHASE LOOP =====
 task.spawn(function()
 	while task.wait(3) do
 		local purchasable = Workspace:FindFirstChild("Purchasable")
@@ -900,13 +1074,13 @@ task.spawn(function()
 				local name = item.Name
 				local priceType = getPriceType(item)
 
-				-- 💰 Pembelian via Money
+				-- 💰 Beli via Money
 				if autoBuyMoney and priceType == "Money" and table.find(selectedMoneyItems, name) then
 					buyItem(item)
 					task.wait(1)
 				end
 
-				-- 💎 Pembelian via Shards
+				-- 💠 Beli via Shard
 				if autoBuyShards and priceType == "Shard" and table.find(selectedShardItems, name) then
 					buyItem(item)
 					task.wait(1)
@@ -948,19 +1122,6 @@ TabMisc:CreateButton({
             Rayfield:Notify({Title = "Enchant Berhasil ✅", Content = "Item berhasil di-enchant!", Duration = 2})
         else
             Rayfield:Notify({Title = "Gagal ❌", Content = "Aetherite/Aurorite-nya Mana Blokk🗿", Duration = 3})
-        end
-    end,
-})
- 
--- 👨‍💼 TP To Merchant
-TabMisc:CreateButton({
-    Name = "TP Traveling Merchant 🛒",
-    Callback = function()
-        local merchant = workspace:FindFirstChild("Traveling Merchant", true)
-        if merchant and merchant:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character:PivotTo(merchant.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0))
-        else
-            Rayfield:Notify({Title = "Merchant Tidak Ada ❌", Content = "Traveling Merchant belum spawn 🗿", Duration = 4})
         end
     end,
 })
@@ -1024,93 +1185,6 @@ TabMisc:CreateButton({
             Rayfield:Notify({Title = "Reset WalkSpeed ✅", Content = "WalkSpeed kembali ke bawaan game (" .. DefaultWalkSpeed .. ").", Duration = 2})
         end
     end,
-})
-
--- ===== Show Coordinates (Custom Size & Position) 📍 =====
-local coordGui, coordLabel, copyButton, coordLoop, lastText = nil, nil, nil, nil, ""
- 
-TabMisc:CreateToggle({
-    Name = "Show Coordinates 📍",
-    CurrentValue = false,
-    Callback = function(Value)
-        if Value then
-            if not coordGui then
-                coordGui = Instance.new("ScreenGui")
-                coordGui.Name = "CoordOverlay"
-                coordGui.ResetOnSpawn = false
-                coordGui.Parent = game:GetService("CoreGui")
- 
-                local frame = Instance.new("Frame")
-                frame.Size = UDim2.new(0, 350, 0, 95) -- sesuai permintaan
-                frame.Position = UDim2.new(0.5, -175, 0.50, 0) -- pas tengah bawah
-                frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
-                frame.BackgroundTransparency = 0.25
-                frame.BorderSizePixel = 0
-                frame.Parent = coordGui
- 
-                coordLabel = Instance.new("TextLabel")
-                coordLabel.Size = UDim2.new(1, -20, 0, 55)
-                coordLabel.Position = UDim2.new(0,10,0,5)
-                coordLabel.BackgroundTransparency = 1
-                coordLabel.TextColor3 = Color3.fromRGB(0,255,0)
-                coordLabel.TextStrokeTransparency = 0
-                coordLabel.TextStrokeColor3 = Color3.fromRGB(0,0,0)
-                coordLabel.Font = Enum.Font.Code
-                coordLabel.TextSize = 20 -- teks lebih besar
-                coordLabel.Text = "Menunggu posisi..."
-                coordLabel.TextYAlignment = Enum.TextYAlignment.Top
-                coordLabel.TextXAlignment = Enum.TextXAlignment.Left
-                coordLabel.Parent = frame
- 
-                copyButton = Instance.new("TextButton")
-                copyButton.Size = UDim2.new(0, 110, 0, 28)
-                copyButton.Position = UDim2.new(0.5, -55, 1, -32) -- center bawah frame
-                copyButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
-                copyButton.TextColor3 = Color3.fromRGB(255,255,255)
-                copyButton.Font = Enum.Font.Code
-                copyButton.TextSize = 16
-                copyButton.Text = "Copy 📋"
-                copyButton.Parent = frame
- 
-                copyButton.MouseButton1Click:Connect(function()
-                    if lastText ~= "" then
-                        setclipboard(lastText)
-                        copyButton.Text = "Copied!"
-                        task.delay(1.5, function()
-                            if copyButton then copyButton.Text = "Copy 📋" end
-                        end)
-                    end
-                end)
-            end
- 
-            coordLoop = RunService.Heartbeat:Connect(function()
-                local char = LocalPlayer.Character
-                if char then
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        local pos = hrp.Position
-                        local lookVector = hrp.CFrame.LookVector
-                        local targetPoint = pos + (lookVector * 100)
- 
-                        local text = string.format(
-                            "LookAt → %.0f, %.0f, %.0f\nPos    → %.0f, %.0f, %.0f",
-                            targetPoint.X, targetPoint.Y, targetPoint.Z,
-                            pos.X, pos.Y, pos.Z
-                        )
-                        coordLabel.Text = text
-                        lastText = text
-                    end
-                end
-            end)
-        else
-            if coordLoop then coordLoop:Disconnect() coordLoop = nil end
-            if coordGui then
-                coordGui:Destroy()
-                coordGui, coordLabel, copyButton = nil, nil, nil
-                lastText = ""
-            end
-        end
-    end
 })
 
 -- 🔦 Auto Flare Ultimate Loop (Slot 6 + Lempar)
