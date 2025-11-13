@@ -98,7 +98,7 @@ local function Humanoid() local c=character() return c and c:FindFirstChildOfCla
 local savedSandCF, savedWaterCF = nil, nil
 local autoFarm, autoHelper = false, false
 local normalWalkSpeed = 26
-local farmWalkSpeed = 1000
+local farmWalkSpeed = 56
 
 local function notify(title, content, dur)
     Rayfield:Notify({Title=title, Content=content, Duration=dur or 2})
