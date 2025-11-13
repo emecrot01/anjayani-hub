@@ -777,7 +777,6 @@ TabSystem:CreateToggle({
 local WebhookTab = Window:CreateTab("Webhooks 🌐")
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 local Backpack = LocalPlayer:WaitForChild("BackpackTwo")
@@ -792,50 +791,16 @@ local WebhookEnabled = false
 local WebhookURL = "https://discord.com/api/webhooks/1435819964530561225/LTYJQFSGU0SMeGRgxMfJLZtZpPF4SLv1wyIOK-BQ5n-KfC0gliHMameVXzPLEC71Fy1U"
 local SelectedRarity = {} -- dropdown awal kosong
 
--- ===== DATA ORE + GAMBAR (lengkap) =====
+-- ===== DATA ORE + GAMBAR (hanya untuk thumbnail) =====
 local OreData = {
-    ["⚪ Common"] = {
-        {Name="Pyrite",Price=500},{Name="Silver",Price=700},{Name="Copper",Price=800},{Name="Gold",Price=1000},
-        {Name="Blue Ice",Price=1500},{Name="Platinum",Price=2000},{Name="Seashell",Price=2200},{Name="Obsidian",Price=3000},
-        {Name="Amethyst",Price=3500},{Name="Pearl",Price=5000}
-    },
-    ["🟢 Uncommon"] = {
-        {Name="Titanium",Price=7500},{Name="Neodymium",Price=10000},{Name="Glowberry",Price=12000},{Name="Topaz",Price=14000},
-        {Name="Smoky Quartz",Price=16000},{Name="Malachite",Price=18000},{Name="Coral",Price=23000},{Name="Sapphire",Price=25000},
-        {Name="Zircon",Price=25000},{Name="Electrum",Price=13000},{Name="Rock Candy",Price=15000}
-    },
-    ["🔵 Rare"] = {
-        {Name="Ruby",Price=30000},{Name="Lapis Lazuli",Price=40000},{Name="Jade",Price=40000},{Name="Silver Clamshell",Price=50000},
-        {Name="Peridot",Price=60000},{Name="Onyx",Price=75000},{Name="Meteoric Iron",Price=80000},{Name="Glacial Quartz",Price=100000},
-        {Name="Amber",Price=110000},{Name="Azuralite",Price=120000},{Name="Pyrelith",Price=150000},{Name="Gloomberry",Price=80000},
-        {Name="Diopside",Price=99000}
-    },
-    ["🟣 Epic"] = {
-        {Name="Iridium",Price=150000},{Name="Glowmoss",Price=175000},{Name="Moonstone",Price=200000},{Name="Ammonite Fossil",Price=200000},
-        {Name="Ashvein",Price=222000},{Name="Pyronium",Price=226000},{Name="Emerald",Price=250000},{Name="Golden Pearl",Price=250000},
-        {Name="Cobalt",Price=250000},{Name="Borealite",Price=280000},{Name="Osmium",Price=300000},{Name="Lightshard",Price=300000},
-        {Name="Opal",Price=325000},{Name="Aurorite",Price=444444},{Name="Bone",Price=200000},{Name="Mercury",Price=450000}
-    },
-    ["🟡 Legendary"] = {
-        {Name="Rose Gold",Price=500000},{Name="Palladium",Price=500000},{Name="Cinnabar",Price=900000},{Name="Diamond",Price=1000000},
-        {Name="Uranium",Price=1500000},{Name="Luminum",Price=1500000},{Name="Catseye",Price=2222222},{Name="Starshine",Price=2500000},
-        {Name="Specterite",Price=2800000},{Name="Tourmaline",Price=2888000},{Name="Aquamarine",Price=4000000},{Name="Aetherite",Price=4444444},
-        {Name="Volcanic Key",Price=1500000},{Name="Firefly Stone",Price=1500000},{Name="Fire Opal",Price=1600000},{Name="Dragon Bone",Price=2000000},
-        {Name="Bismuth",Price=2600000},{Name="Lost Soul",Price=6666666}
-    },
-    ["🔴 Mythic"] = {
-        {Name="Pink Diamond",Price=6000000},{Name="Painite",Price=10000000},{Name="Inferlume",Price=14000000},{Name="Vortessence",Price=20000000},
-        {Name="Mythril",Price=20000000},{Name="Chrysoberyl",Price=21000000},{Name="Prismara",Price=25000000},{Name="Flarebloom",Price=30000000},
-        {Name="Volcanic Core",Price=40000000},{Name="Radiant Gold",Price=40000000},{Name="Frostshard",Price=50000000},{Name="Star Garnet",Price=44000000}
-    },
     ["💎 Exotic"] = {
-        {Name="Dinosaur Skull",Price=50000000,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Dinosaur_Skullhd.png"},
-        {Name="Cryonic Artifact",Price=100000000,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Cryonic_Artifacthd.png"},
-        {Name="Voidstone",Price=111111111,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Voidstonehd.png"},
-        {Name="Umbrite",Price=180000000,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Umbriteindi.png"},
-        {Name="Vineheart",Price=125000000,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Vinehearthd.png"},
-        {Name="Bloodstone",Price=250000000,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/bloodstonehd.png"},
-        {Name="Pumpkin Soul",Price=40000000,Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/PumpkinSoulhd.png"}
+        {Name="Dinosaur Skull",Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Dinosaur_Skullhd.png"},
+        {Name="Cryonic Artifact",Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Cryonic_Artifacthd.png"},
+        {Name="Voidstone",Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Voidstonehd.png"},
+        {Name="Umbrite",Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Umbriteindi.png"},
+        {Name="Vineheart",Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Vinehearthd.png"},
+        {Name="Bloodstone",Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/bloodstonehd.png"},
+        {Name="Pumpkin Soul",Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/PumpkinSoulhd.png"}
     }
 }
 
@@ -849,10 +814,11 @@ local function GetOreData(name)
     end
 end
 
--- ===== FUNCTION CHECK RARITY TERPILIH =====
+-- ===== FUNCTION CEK RARITY TERPILIH =====
 local function IsRaritySelected(tool)
     local rarity = tool:GetAttribute("Rarity")
     if not rarity then return false end
+
     local formatted = ""
     for _, r in ipairs({
         {Name="Common", Emoji="⚪"},
@@ -864,23 +830,31 @@ local function IsRaritySelected(tool)
         {Name="Exotic", Emoji="💎"}
     }) do
         if r.Name == rarity then
-            formatted = r.Emoji.." "..r.Name
+            formatted = r.Emoji .. " " .. r.Name
             break
         end
     end
     return table.find(SelectedRarity, formatted) ~= nil
 end
 
--- ===== FUNCTION SEND WEBHOOK =====
+-- ===== FUNCTION AMBIL DATA DARI ITEMDATA =====
+local function GetItemAttribute(tool, attr)
+    local itemData = tool:FindFirstChild("ItemData")
+    if itemData and itemData:GetAttribute(attr) then
+        return itemData:GetAttribute(attr)
+    end
+    return "Unknown"
+end
+
+-- ===== FUNCTION KIRIM WEBHOOK =====
 local function SendWebhook(tool)
     if not WebhookEnabled or WebhookURL == "" or not req then return end
     if not IsRaritySelected(tool) then return end
 
     local data = GetOreData(tool.Name)
-    if not data then return end
-    data = data[1] or data
+    data = data and (data[1] or data) or {}
 
-    local rarity = tool:GetAttribute("Rarity")
+    local rarity = tool:GetAttribute("Rarity") or "Unknown"
     local formatted = ""
     for _, r in ipairs({
         {Name="Common", Emoji="⚪"},
@@ -892,17 +866,26 @@ local function SendWebhook(tool)
         {Name="Exotic", Emoji="💎"}
     }) do
         if r.Name == rarity then
-            formatted = r.Emoji.." "..r.Name
+            formatted = r.Emoji .. " " .. r.Name
             break
         end
     end
 
+    -- Ambil data runtime dari ItemData
+    local modifier = GetItemAttribute(tool, "Modifier")
+    local price = GetItemAttribute(tool, "Price")
+    local size = GetItemAttribute(tool, "Weight")
+
     local embed = {
         title = "📦 Item Baru Diperoleh!",
-        description = string.format("**Nama:** %s\n**Rarity:** %s\n**Harga:** `$%s/kg`", data.Name, formatted, data.Price),
+        description = string.format(
+            "**Ore:** %s\n**Rarity:** %s\n**Modifier:** %s\n**Price:** `$%s`\n**Size:** %s KG",
+            tool.Name, formatted, modifier, price, size
+        ),
         color = 0x1abc9c,
         footer = { text = "Anjayani Hub X Mammoth King👑" }
     }
+
     if data.Image then
         embed.thumbnail = { url = data.Image }
     end
@@ -916,16 +899,16 @@ local function SendWebhook(tool)
         req({
             Url = WebhookURL,
             Method = "POST",
-            Headers = {["Content-Type"]="application/json"},
+            Headers = { ["Content-Type"] = "application/json" },
             Body = HttpService:JSONEncode(body)
         })
     end)
 end
 
--- ===== CONNECT INVENTORY (Hanya rarity yang dipilih) =====
+-- ===== DETEKSI ITEM MASUK =====
 Backpack.ChildAdded:Connect(function(tool)
     if not tool:IsA("Tool") then return end
-    task.wait(0.05) -- tunggu atribut ter-set
+    task.wait(0.05)
     if IsRaritySelected(tool) then
         SendWebhook(tool)
     end
@@ -935,7 +918,7 @@ end)
 WebhookTab:CreateDropdown({
     Name = "Pilih Rarity ✅",
     Options = {"⚪ Common","🟢 Uncommon","🔵 Rare","🟣 Epic","🟡 Legendary","🔴 Mythic","💎 Exotic"},
-    CurrentOption = {}, -- awal kosong, None
+    CurrentOption = {},
     MultipleOptions = true,
     Callback = function(options)
         SelectedRarity = options
@@ -944,7 +927,7 @@ WebhookTab:CreateDropdown({
 
 WebhookTab:CreateToggle({
     Name = "Aktifkan Webhooks 🟢",
-    CurrentValue = false, -- awal OFF
+    CurrentValue = false,
     Callback = function(val)
         WebhookEnabled = val
     end
@@ -958,10 +941,10 @@ WebhookTab:CreateButton({
             req({
                 Url = WebhookURL,
                 Method = "POST",
-                Headers = {["Content-Type"]="application/json"},
+                Headers = { ["Content-Type"] = "application/json" },
                 Body = HttpService:JSONEncode({
-                    username="Prospecting Bot 💎",
-                    content="✅ Webhook Berhasil Terhubung!"
+                    username = "Prospecting Bot 💎",
+                    content = "✅ Webhook Berhasil Terhubung!"
                 })
             })
         end)
