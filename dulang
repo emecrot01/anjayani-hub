@@ -97,7 +97,8 @@ local function Humanoid() local c=character() return c and c:FindFirstChildOfCla
 
 local savedSandCF, savedWaterCF = nil, nil
 local autoFarm, autoHelper = false, false
-local autoFarmWalkSpeed = 26
+local normalWalkSpeed = 26
+local farmWalkSpeed = 1000
 
 local function notify(title, content, dur)
     Rayfield:Notify({Title=title, Content=content, Duration=dur or 2})
@@ -214,16 +215,22 @@ TabFarm:CreateToggle({
     CurrentValue=false,
     Callback=function(state)
         autoFarm=state
-        if not state then
-            notify("Auto Farm","Stopped ❌")
+        local hum = Humanoid()
+        if not hum then return end
+
+        if state then
+            hum.WalkSpeed = farmWalkSpeed
+            notify("Auto Farm","Started ✅ (Speed "..farmWalkSpeed..")")
+        else
+            hum.WalkSpeed = normalWalkSpeed
+            notify("Auto Farm","Stopped ❌ (Speed Reset to "..normalWalkSpeed..")")
             return
         end
-        notify("Auto Farm","Started ✅")
 
         task.spawn(function()
             while autoFarm do
                 local hum = Humanoid()
-                if hum then hum.WalkSpeed = autoFarmWalkSpeed end
+                if hum then hum.WalkSpeed = farmWalkSpeed end
                 task.wait(0.05)
             end
         end)
@@ -253,12 +260,10 @@ TabFarm:CreateToggle({
                         end
                     end
                 end
-
                 randDelay(0.05,0.15)
             end
         end)
 
-        -- Safe Auto-Equip Pan Slot 1 (CD 2 detik)
         task.spawn(function()
             while autoFarm do
                 task.wait(5)
@@ -1148,12 +1153,12 @@ TabMisc:CreateButton({
 -- ⚡ WalkSpeed Input
 TabMisc:CreateInput({
     Name = "Set WalkSpeed ⚡",
-    PlaceholderText = "Masukkan angka (max 100)",
+    PlaceholderText = "Masukkan angka (max 1000)",
     RemoveTextAfterFocusLost = true,
     Callback = function(value)
         local num = tonumber(value)
         if humanoid and num then
-            if num > 100 then num = 100 end
+            if num > 1000 then num = 1000 end
             if num < 0 then num = 0 end
             humanoid.WalkSpeed = num
             Rayfield:Notify({Title = "WalkSpeed Updated ✅", Content = "WalkSpeed diatur ke " .. num, Duration = 2})
