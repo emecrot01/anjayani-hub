@@ -1226,20 +1226,39 @@ TabMisc:CreateToggle({
     end
 })
 
--- 🚀 Auto Interact (No Click Needed)
+-- 🚀 Instant Interact (8 Stud Radius)
+
 local autoInteractEnabled = false
-local autoInteractDelay = 0.2 -- delay antar trigger (biar aman)
+local interactRadius = 8
+local autoInteractDelay = 0.5
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local function getRoot()
+    local char = player.Character
+    if char then
+        return char:FindFirstChild("HumanoidRootPart")
+    end
+end
 
 local function autoInteractLoop()
     task.spawn(function()
         while autoInteractEnabled do
-            for _, v in pairs(game:GetDescendants()) do
-                if v:IsA("ProximityPrompt") then
-                    if v.Enabled and v.Parent then
-                        pcall(function()
-                            fireproximityprompt(v)
-                        end)
-                        task.wait(autoInteractDelay)
+            local root = getRoot()
+            if root then
+                for _, prompt in ipairs(workspace:GetDescendants()) do
+                    if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                        local parent = prompt.Parent
+                        if parent and parent:IsA("BasePart") then
+                            local distance = (root.Position - parent.Position).Magnitude
+                            if distance <= interactRadius then
+                                pcall(function()
+                                    fireproximityprompt(prompt)
+                                end)
+                                task.wait(autoInteractDelay)
+                            end
+                        end
                     end
                 end
             end
@@ -1249,22 +1268,22 @@ local function autoInteractLoop()
 end
 
 TabMisc:CreateToggle({
-    Name = "Auto Interact 🚀",
+    Name = "Instant Interact (8 Stud) ⚡",
     CurrentValue = false,
     Callback = function(Value)
         autoInteractEnabled = Value
 
         if Value then
             Rayfield:Notify({
-                Title = "Auto Interact Aktif ✅",
-                Content = "Semua prompt akan otomatis ter-trigger.",
+                Title = "Instant Interact Aktif ✅",
+                Content = "Auto interact dalam radius 8 stud.",
                 Duration = 2
             })
             autoInteractLoop()
         else
             Rayfield:Notify({
-                Title = "Auto Interact Nonaktif ❌",
-                Content = "Auto interact dimatikan.",
+                Title = "Instant Interact Nonaktif ❌",
+                Content = "Sistem dihentikan.",
                 Duration = 2
             })
         end
