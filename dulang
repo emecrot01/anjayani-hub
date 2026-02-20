@@ -1226,65 +1226,61 @@ TabMisc:CreateToggle({
     end
 })
 
--- 🚀 Instant Interact (8 Stud - Fixed Position)
+-- ⚡ Instant Interact (No Hold)
 
-local autoInteractEnabled = false
-local interactRadius = 8
-local autoInteractDelay = 0.5
+local instantEnabled = false
+local originalDurations = {}
 
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-
-local function getRoot()
-    local char = player.Character
-    if char then
-        return char:FindFirstChild("HumanoidRootPart")
-    end
-end
-
-local function getObjectPosition(obj)
-    if obj:IsA("BasePart") then
-        return obj.Position
-    elseif obj:IsA("Model") then
-        return obj:GetPivot().Position
-    end
-end
-
-local function autoInteractLoop()
-    task.spawn(function()
-        while autoInteractEnabled do
-            local root = getRoot()
-            if root then
-                for _, prompt in ipairs(workspace:GetDescendants()) do
-                    if prompt:IsA("ProximityPrompt") and prompt.Enabled then
-                        local parent = prompt.Parent
-                        if parent then
-                            local pos = getObjectPosition(parent)
-                            if pos then
-                                local distance = (root.Position - pos).Magnitude
-                                if distance <= interactRadius then
-                                    pcall(function()
-                                        fireproximityprompt(prompt)
-                                    end)
-                                    task.wait(autoInteractDelay)
-                                end
-                            end
-                        end
-                    end
-                end
+local function applyInstant()
+    for _, prompt in ipairs(workspace:GetDescendants()) do
+        if prompt:IsA("ProximityPrompt") then
+            if not originalDurations[prompt] then
+                originalDurations[prompt] = prompt.HoldDuration
             end
-            task.wait(0.1)
+            prompt.HoldDuration = 0
         end
-    end)
+    end
 end
+
+local function restoreHold()
+    for prompt, duration in pairs(originalDurations) do
+        if prompt and prompt.Parent then
+            prompt.HoldDuration = duration
+        end
+    end
+end
+
+-- detect prompt baru
+workspace.DescendantAdded:Connect(function(obj)
+    if instantEnabled and obj:IsA("ProximityPrompt") then
+        task.wait()
+        if not originalDurations[obj] then
+            originalDurations[obj] = obj.HoldDuration
+        end
+        obj.HoldDuration = 0
+    end
+end)
 
 TabMisc:CreateToggle({
-    Name = "Instant Interact (8 Stud) ⚡",
+    Name = "Instant Interact ⚡",
     CurrentValue = false,
-    Callback = function(Value)
-        autoInteractEnabled = Value
-        if Value then
-            autoInteractLoop()
+    Callback = function(v)
+        instantEnabled = v
+
+        if v then
+            applyInstant()
+            Rayfield:Notify({
+                Title = "Instant Interact Aktif ✅",
+                Content = "Tidak perlu tahan tombol lagi.",
+                Duration = 2
+            })
+        else
+            restoreHold()
+            Rayfield:Notify({
+                Title = "Instant Interact Nonaktif ❌",
+                Content = "Durasi kembali normal.",
+                Duration = 2
+            })
         end
     end
 })
