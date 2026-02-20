@@ -1226,7 +1226,7 @@ TabMisc:CreateToggle({
     end
 })
 
--- 🚀 Instant Interact (8 Stud Radius)
+-- 🚀 Instant Interact (8 Stud - Fixed Position)
 
 local autoInteractEnabled = false
 local interactRadius = 8
@@ -1242,6 +1242,14 @@ local function getRoot()
     end
 end
 
+local function getObjectPosition(obj)
+    if obj:IsA("BasePart") then
+        return obj.Position
+    elseif obj:IsA("Model") then
+        return obj:GetPivot().Position
+    end
+end
+
 local function autoInteractLoop()
     task.spawn(function()
         while autoInteractEnabled do
@@ -1250,13 +1258,16 @@ local function autoInteractLoop()
                 for _, prompt in ipairs(workspace:GetDescendants()) do
                     if prompt:IsA("ProximityPrompt") and prompt.Enabled then
                         local parent = prompt.Parent
-                        if parent and parent:IsA("BasePart") then
-                            local distance = (root.Position - parent.Position).Magnitude
-                            if distance <= interactRadius then
-                                pcall(function()
-                                    fireproximityprompt(prompt)
-                                end)
-                                task.wait(autoInteractDelay)
+                        if parent then
+                            local pos = getObjectPosition(parent)
+                            if pos then
+                                local distance = (root.Position - pos).Magnitude
+                                if distance <= interactRadius then
+                                    pcall(function()
+                                        fireproximityprompt(prompt)
+                                    end)
+                                    task.wait(autoInteractDelay)
+                                end
                             end
                         end
                     end
@@ -1272,20 +1283,8 @@ TabMisc:CreateToggle({
     CurrentValue = false,
     Callback = function(Value)
         autoInteractEnabled = Value
-
         if Value then
-            Rayfield:Notify({
-                Title = "Instant Interact Aktif ✅",
-                Content = "Auto interact dalam radius 8 stud.",
-                Duration = 2
-            })
             autoInteractLoop()
-        else
-            Rayfield:Notify({
-                Title = "Instant Interact Nonaktif ❌",
-                Content = "Sistem dihentikan.",
-                Duration = 2
-            })
         end
     end
 })
