@@ -1225,3 +1225,48 @@ TabMisc:CreateToggle({
         end
     end
 })
+
+-- 🚀 Auto Interact (No Click Needed)
+local autoInteractEnabled = false
+local autoInteractDelay = 0.2 -- delay antar trigger (biar aman)
+
+local function autoInteractLoop()
+    task.spawn(function()
+        while autoInteractEnabled do
+            for _, v in pairs(game:GetDescendants()) do
+                if v:IsA("ProximityPrompt") then
+                    if v.Enabled and v.Parent then
+                        pcall(function()
+                            fireproximityprompt(v)
+                        end)
+                        task.wait(autoInteractDelay)
+                    end
+                end
+            end
+            task.wait(0.1)
+        end
+    end)
+end
+
+TabMisc:CreateToggle({
+    Name = "Auto Interact 🚀",
+    CurrentValue = false,
+    Callback = function(Value)
+        autoInteractEnabled = Value
+
+        if Value then
+            Rayfield:Notify({
+                Title = "Auto Interact Aktif ✅",
+                Content = "Semua prompt akan otomatis ter-trigger.",
+                Duration = 2
+            })
+            autoInteractLoop()
+        else
+            Rayfield:Notify({
+                Title = "Auto Interact Nonaktif ❌",
+                Content = "Auto interact dimatikan.",
+                Duration = 2
+            })
+        end
+    end
+})
