@@ -30,8 +30,7 @@ TabHome:CreateParagraph({
 -Save Water 🌊
 -Auto Farm ⛏️
 -Auto Collect + Shake ⛏️💧
--Perfect HIT ⛏️💥
--Instant Geode 💎
+-Instant Geode 💎 (Need Update)
 
 • Auto Fav/Sell 🌟/💰 
 Di Gabung Ke 1 Tab Dan  Di Perbarui Ke Versi Terbaru Dengan Sistem Yang Lebih Simpel (Menggunakan Sistem Dropdown)
@@ -47,7 +46,7 @@ Menambahkan Fitur Baru Yaitu Webhooks (Hanya Terhubung Ke Webhooks Milik Owner S
 -TP Traveling Merchant 🛒
 -Reforge Anywhere 🔧
 -Walk Speed 👟⚡(Max 100)
--Auto Flare 🔦
+-Instant Interact 🤚🏻⚡
 
 🛠️ Fixed
 • Shake Sambil Berjalan (Saat Melakukan Shake, Karakter Akan Kembali Ke Area Penggalian Dan Melakukan Shake Disana)
@@ -327,91 +326,6 @@ TabFarm:CreateToggle({
         end)
     end
 })
-
--- === Perfect Hit (Independen, Tap Hold) ===
-local TabPerfectHit = TabFarm -- letakkan di bawah Auto Collect + Shake
-
-local RunService = game:GetService("RunService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
--- Ambil DigBar
-local function getDigBar()
-    local ok, dig = pcall(function()
-        return PlayerGui:WaitForChild("ToolUI"):WaitForChild("DigBar")
-    end)
-    return ok and dig or nil
-end
-
-local DigBar = getDigBar()
-local PerfectHitEnabled = false
-local Padding = 2
-
--- Helper untuk cek tengah bar di dalam GradientFrame
-local function checkCenterHit(bar, frame, pad)
-    local barPos, barSize = bar.AbsolutePosition, bar.AbsoluteSize
-    local framePos, frameSize = frame.AbsolutePosition, frame.AbsoluteSize
-
-    local barCenterX = barPos.X + (barSize.X / 2)
-    local barCenterY = barPos.Y + (barSize.Y / 2)
-
-    local fLeft   = framePos.X - pad
-    local fRight  = framePos.X + frameSize.X + pad
-    local fTop    = framePos.Y - pad
-    local fBottom = framePos.Y + frameSize.Y + pad
-
-    return (barCenterX >= fLeft and barCenterX <= fRight) and
-           (barCenterY >= fTop and barCenterY <= fBottom)
-end
-
-local function pressMouse()
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-end
-
-local function releaseMouse()
-    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-end
-
--- Toggle Perfect Hit
-TabPerfectHit:CreateToggle({
-    Name = "Perfect HIT ⛏️💥",
-    CurrentValue = false,
-    Flag = "PerfectHitToggle",
-    Callback = function(Value)
-        PerfectHitEnabled = Value
-        if PerfectHitEnabled and (not DigBar or not DigBar.Parent) then
-            DigBar = getDigBar()
-        end
-        if not PerfectHitEnabled then
-            releaseMouse()
-        end
-    end
-})
-
--- Loop utama Perfect Hit
-RunService.RenderStepped:Connect(function()
-    if not PerfectHitEnabled then return end
-    if not DigBar or not DigBar.Parent then
-        DigBar = getDigBar()
-        if not DigBar then return end
-    end
-    if not DigBar.Visible then return end
-
-    local bar = DigBar:FindFirstChild("Line")
-    local frame = DigBar:FindFirstChild("GradientFrame")
-    if not bar or not frame then return end
-
-    local isHitting = checkCenterHit(bar, frame, Padding)
-
-    if isHitting then
-        -- Tap Hold sudah ditekan manual, cuma spam ketika berada di GradientFrame
-        pressMouse()
-        task.wait(0.001)
-        releaseMouse()
-    else
-        releaseMouse()
-    end
-end)
 
 -- === Instant Geode Collect (Optimized for Large Maps) ===
 local geodeFolder = workspace:WaitForChild("Geode")
@@ -1174,56 +1088,6 @@ TabMisc:CreateButton({
             Rayfield:Notify({Title = "Reset WalkSpeed ✅", Content = "WalkSpeed kembali ke bawaan game (" .. DefaultWalkSpeed .. ").", Duration = 2})
         end
     end,
-})
-
--- 🔦 Auto Flare Ultimate Loop (Slot 6 + Lempar)
-local autoFlareEnabled = false
-
-TabMisc:CreateToggle({
-    Name = "Auto Flare 🔦",
-    CurrentValue = false,
-    Callback = function(Value)
-        autoFlareEnabled = Value -- <-- update variabel global
-
-        local Players = game:GetService("Players")
-        local LocalPlayer = Players.LocalPlayer
-        local VIM = game:GetService("VirtualInputManager")
-        local VirtualUser = game:GetService("VirtualUser")
-        local SLOT_KEY = Enum.KeyCode.Six
-        local LOOP_COOLDOWN = 540 -- 9 menit
-
-        if Value then
-            Rayfield:Notify({Title="Auto Flare Aktif ✅", Content="Flare akan dilempar otomatis setiap 9 menit.", Duration=3})
-
-            task.spawn(function()
-                while autoFlareEnabled do
-                    task.wait(0.5)
-
-                    pcall(function()
-                        VIM:SendKeyEvent(true, SLOT_KEY, false, game)
-                        task.wait(0.03)
-                        VIM:SendKeyEvent(false, SLOT_KEY, false, game)
-                    end)
-
-                    task.wait(0.5)
-
-                    pcall(function()
-                        local viewport = workspace.CurrentCamera.ViewportSize
-                        local x, y = viewport.X / 2, viewport.Y / 2
-                        VirtualUser:CaptureController()
-                        VirtualUser:ClickButton1(Vector2.new(x, y))
-                    end)
-
-                    local t0 = tick()
-                    while autoFlareEnabled and tick() - t0 < LOOP_COOLDOWN do
-                        task.wait(0.5)
-                    end
-                end
-            end)
-        else
-            Rayfield:Notify({Title="Auto Flare Nonaktif ❌", Content="Sistem auto flare dimatikan.", Duration=2})
-        end
-    end
 })
 
 -- ⚡ Instant Interact (No Hold)
