@@ -18,38 +18,41 @@ local Window = Rayfield:CreateWindow({
  
 -- TAB Home 🏠
 local TabHome = Window:CreateTab("Home 🏠")
-TabHome:CreateLabel("Prospecting! 💎 v1.4 Remake")
+TabHome:CreateLabel("Prospecting! 💎 v1.5")
 TabHome:CreateSection("Changelog")
 TabHome:CreateParagraph({
-    Title = "Prospecting! 💎 v1.4 Remake",
+    Title = "Prospecting! 💎 v1.5",
     Content = [[
 🎉 Fitur Yang Tersedia:
 • Auto Farm
--Save Position 📍
--Save Sand 🏝️
--Save Water 🌊
--Auto Farm ⛏️
--Auto Collect + Shake ⛏️💧
--Instant Geode 💎 (Need Update)
+-Auto Panning ⛏️💧 (Save Dig/Water Area, Auto Panning) New System (More Faster)
+-Auto Collect + Shake ⛏️💧 (Manual Movement 👟)
+-Auto Geode (New Method)
+-Auto Hunt EasterEgg 🐰🥚 (New & Limited Feature)
+
+• Take Quest 📜
+-Dredge Master Quest 🛥️📜 (New Feature)
 
 • Auto Fav/Sell 🌟/💰 
 Di Gabung Ke 1 Tab Dan  Di Perbarui Ke Versi Terbaru Dengan Sistem Yang Lebih Simpel (Menggunakan Sistem Dropdown)
 
-• Webhooks 🌐 [NEW]
+• Webhooks 🌐
 Menambahkan Fitur Baru Yaitu Webhooks (Hanya Terhubung Ke Webhooks Milik Owner Script Ini)
 
 • Shop 🏪
 -Auto Buy Traveling Merchant 🛒
 
 • Misc
--Enchant Pan Anywhere 🔮
--TP Traveling Merchant 🛒
 -Reforge Anywhere 🔧
--Walk Speed 👟⚡(Max 100)
+-Walk Speed 👟⚡(Max 1000)
 -Instant Interact 🤚🏻⚡
+-No Clip 👻 (Fitur baru, tapi ga work karena game memiliki anti collison)
 
 🛠️ Fixed
 • Shake Sambil Berjalan (Saat Melakukan Shake, Karakter Akan Kembali Ke Area Penggalian Dan Melakukan Shake Disana)
+
+🚨 Update Soon
+Already Updated
 
     ]]
 })
@@ -82,34 +85,39 @@ task.spawn(function()
 end)
 
 -- TAB Auto Farm ⛏️
-local TabFarm = Window:CreateTab("Auto Farm ⛏️")
+local TabFarm = Window:CreateTab("Auto Farm ⛏️💧")
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local function character() return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait() end
 local function HRP() local c=character() return c and c:FindFirstChild("HumanoidRootPart") end
-local function Humanoid() local c=character() return c and c:FindFirstChildOfClass("Humanoid") end
 
 local savedSandCF, savedWaterCF = nil, nil
-local autoFarm, autoHelper = false, false
-local normalWalkSpeed = 32
-local farmWalkSpeed = 40
+local autoFarm = false
+local currentTween = nil
 
-local function notify(title, content, dur)
-    Rayfield:Notify({Title=title, Content=content, Duration=dur or 2})
-end
+local TWEEN_SPEED = 50
 
 local function randDelay(min, max)
     task.wait(math.random()*(max-min)+min)
 end
 
+-- TOOL
 local function getTool()
     local c=character()
     return c and c:FindFirstChildOfClass("Tool") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
+end
+
+local function equipPan()
+    local tool = getTool()
+    if tool and tool.Parent ~= character() then
+        tool.Parent = character()
+        task.wait(0.1)
+    end
+    return tool
 end
 
 local function getCapacity()
@@ -134,50 +142,51 @@ local function getRemotes(tool)
 end
 
 local function callRemote(remote, ...)
-    if not remote then return false end
-    local ok
-    if remote.ClassName=="RemoteFunction" then
-        ok=pcall(function(...) remote:InvokeServer(...) end, ...)
-    elseif remote.ClassName=="RemoteEvent" then
-        ok=pcall(function(...) remote:FireServer(...) end, ...)
+    if not remote then return end
+    pcall(function(...)
+        if remote.ClassName=="RemoteFunction" then
+            remote:InvokeServer(...)
+        else
+            remote:FireServer(...)
+        end
+    end, ...)
+end
+
+-- SAFE TWEEN
+local function tweenTo(pos)
+    local hrp = HRP()
+    if not hrp then return end
+
+    if currentTween then
+        pcall(function() currentTween:Cancel() end)
     end
-    return ok and true or false
+
+    local dist = (hrp.Position - pos).Magnitude
+    local time = dist / TWEEN_SPEED
+
+    currentTween = TweenService:Create(
+        hrp,
+        TweenInfo.new(time, Enum.EasingStyle.Linear),
+        {CFrame = CFrame.new(pos, pos + hrp.CFrame.LookVector)}
+    )
+
+    currentTween:Play()
+    return currentTween
 end
 
-local function moveTo(cf)
-    local hum = Humanoid()
-    if not hum or not cf then return end
-    hum:MoveTo(cf.Position)
-    local done, conn=false
-    conn=hum.MoveToFinished:Connect(function() done=true conn:Disconnect() end)
-    local t0=tick()
-    while not done and tick()-t0<8 do randDelay(0.1,0.25) end
-end
-
-local function ensurePanStarted(tool, tries, delay)
-    tries, delay = tries or 10, delay or 0.1
-    for _=1,tries do
-        if panIsActive() then return true end
-        local _, panRemote = getRemotes(tool)
-        if panRemote then callRemote(panRemote) end
-        randDelay(delay, delay+0.05)
-        if panIsActive() then return true end
-    end
-    return panIsActive()
-end
-
+-- DIG
 local function digUntilFull()
-    local tool, cap=getTool(), getCapacity()
+    local tool, cap = equipPan(), getCapacity()
     if not tool or not cap then return end
+
     VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0)
 
     while autoFarm do
-        tool, cap=getTool(), getCapacity()
-        local fill=getFill(tool)
-        if not tool or not cap or not fill then break end
-        if fill>=cap then break end
+        tool, cap = equipPan(), getCapacity()
+        local fill = getFill(tool)
+        if not tool or not fill or fill >= cap then break end
 
-        local collect=select(1,getRemotes(tool))
+        local collect = select(1,getRemotes(tool))
         if collect then callRemote(collect,1) end
         randDelay(0.08,0.2)
     end
@@ -185,97 +194,78 @@ local function digUntilFull()
     VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
 end
 
-local function shakeLoop()
-    while autoFarm and panIsActive() do
-        local _,_,shake=getRemotes(getTool())
-        if shake then callRemote(shake) end
-        randDelay(0.04,0.07)
+local function ensurePanStarted()
+    for _=1,10 do
+        if panIsActive() then return true end
+        local _, panRemote = getRemotes(getTool())
+        if panRemote then callRemote(panRemote) end
+        randDelay(0.08,0.12)
     end
+    return panIsActive()
 end
 
+-- SHAKE THREAD (NON BLOCKING)
+local function startShakeThread()
+    task.spawn(function()
+        while autoFarm and panIsActive() do
+            local _,_,shake = getRemotes(getTool())
+            if shake then callRemote(shake) end
+            randDelay(0.04,0.07)
+        end
+    end)
+end
+
+-- UI
+TabFarm:CreateSection("Auto Panning ⛏️💧")
+
 TabFarm:CreateButton({
-    Name="Save Sand Position ⛱️",
+    Name="Dig Position ⛏️",
     Callback=function()
         local h=HRP()
-        if h then savedSandCF=h.CFrame notify("Sand Area ⛏️","Saved ✅.") end
+        if h then
+            savedSandCF=h.CFrame
+            Rayfield:Notify({Title="Dig Area ⛏️", Content="Saved ✅", Duration=2})
+        end
     end
 })
 
 TabFarm:CreateButton({
-    Name="Save Water Position 🌊",
+    Name="Water Position 💧",
     Callback=function()
         local h=HRP()
-        if h then savedWaterCF=h.CFrame notify("Water Area 💧","Saved ✅.") end
+        if h then
+            savedWaterCF=h.CFrame
+            Rayfield:Notify({Title="Water Area 💧", Content="Saved ✅", Duration=2})
+        end
     end
 })
 
 TabFarm:CreateToggle({
-    Name="Auto Farm ⛏️",
+    Name="Auto Panning ⛏️💧",
     CurrentValue=false,
-    Callback=function(state)
-        autoFarm=state
-        local hum = Humanoid()
-        if not hum then return end
+    Callback=function(v)
+        autoFarm=v
 
-        if state then
-            hum.WalkSpeed = farmWalkSpeed
-            notify("Auto Farm","Started ✅ (Speed "..farmWalkSpeed..")")
-        else
-            hum.WalkSpeed = normalWalkSpeed
-            notify("Auto Farm","Stopped ❌ (Speed Reset to "..normalWalkSpeed..")")
+        if not v then
+            if currentTween then pcall(function() currentTween:Cancel() end) end
+            Rayfield:Notify({Title="Auto Farm", Content="Stopped ❌", Duration=2})
             return
+        else
+            Rayfield:Notify({Title="Auto Farm", Content="Started ✅ (Tween Mode)", Duration=2})
         end
 
-        task.spawn(function()
-            while autoFarm do
-                local hum = Humanoid()
-                if hum then hum.WalkSpeed = farmWalkSpeed end
-                task.wait(0.05)
-            end
-        end)
-
-        task.spawn(function()
-            while autoFarm do
-                if not savedSandCF or not savedWaterCF then
-                    task.wait(0.5)
-                else
-                    local tool, cap=getTool(), getCapacity()
-                    local fill=getFill(tool)
-                    if tool and cap and fill then
-                        if fill<cap then
-                            moveTo(savedSandCF)
-                            digUntilFull()
-                        elseif fill>=cap then
-                            moveTo(savedWaterCF)
-                            if ensurePanStarted(getTool(),15,0.08) then
-                                task.spawn(shakeLoop)
-                                moveTo(savedSandCF)
-                                while autoFarm and panIsActive() do
-                                    local _,_,shake=getRemotes(getTool())
-                                    if shake then callRemote(shake) end
-                                    randDelay(0.04,0.07)
-                                end
-                            end
-                        end
-                    end
-                end
-                randDelay(0.05,0.15)
-            end
-        end)
-
+        -- AUTO EQUIP LOOP
         task.spawn(function()
             while autoFarm do
                 task.wait(5)
                 local c = character()
                 local panInHand = false
-
                 for _, tool in pairs(c:GetChildren()) do
                     if tool:IsA("Tool") and tool.Name:lower():find("pan") then
                         panInHand = true
                         break
                     end
                 end
-
                 if not panInHand then
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, game)
                     task.wait(0.05)
@@ -283,38 +273,60 @@ TabFarm:CreateToggle({
                 end
             end
         end)
+
+        -- MAIN LOOP
+        task.spawn(function()
+            while autoFarm do
+                if savedSandCF and savedWaterCF then
+                    local tool, cap = equipPan(), getCapacity()
+                    local fill = getFill(tool)
+                    if tool and cap and fill then
+                        if fill < cap then
+                            tweenTo(savedSandCF.Position)
+                            repeat task.wait() until not autoFarm or (HRP().Position - savedSandCF.Position).Magnitude < 3
+                            digUntilFull()
+                        else
+                            tweenTo(savedWaterCF.Position)
+                            repeat task.wait() until not autoFarm or (HRP().Position - savedWaterCF.Position).Magnitude < 3
+                            if ensurePanStarted() then
+                                startShakeThread()
+                                -- balik ke sand area otomatis
+                                tweenTo(savedSandCF.Position)
+                                repeat task.wait() until not autoFarm or (HRP().Position - savedSandCF.Position).Magnitude < 3
+                            end
+                        end
+                    end
+                end
+                randDelay(0.05,0.15)
+            end
+        end)
     end
 })
+
+-- AUTO COLLECT & SHAKE
+TabFarm:CreateSection("Auto Collect & Shake (Manual Movement 👟)")
 
 TabFarm:CreateToggle({
     Name="Auto Collect + Shake ⛏️💧",
     CurrentValue=false,
-    Callback=function(state)
-        autoHelper=state
-        if not state then
-            notify("Auto Collect + Shake","Stopped ❌")
-            return
-        end
-        notify("Auto Collect + Shake","Activate ✅")
+    Callback=function(v)
+        autoHelper = v
         task.spawn(function()
             local lastPan = 0
             while autoHelper do
-                local tool, cap=getTool(), getCapacity()
-                local fill=getFill(tool)
+                local tool, cap = getTool(), getCapacity()
+                local fill = getFill(tool)
                 if tool and cap and fill then
                     local collect, panRemote, shake = getRemotes(tool)
-
                     if panIsActive() then
                         if shake then callRemote(shake) end
                         randDelay(0.04,0.07)
-
                     elseif fill>=cap then
                         if os.clock() - lastPan > 0.4 then
                             if panRemote then callRemote(panRemote) end
                             lastPan = os.clock()
                         end
                         randDelay(0.1,0.2)
-
                     else
                         if collect then callRemote(collect,1) end
                         randDelay(0.08,0.2)
@@ -327,86 +339,313 @@ TabFarm:CreateToggle({
     end
 })
 
--- === Instant Geode Collect (Optimized for Large Maps) ===
-local geodeFolder = workspace:WaitForChild("Geode")
+-- AUTO GEODES
+-- 💎 Auto Geode FINAL v9 (Smart Hover + Obstacle + Respawn Safe)
+ 
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+ 
+local geodeFolder = Workspace:WaitForChild("Geode")
+local player = game.Players.LocalPlayer
+ 
 local hrp = nil
-local InstantGeodeEnabled = false
-local unclaimedGeodes = {}
-
--- Fungsi collect geode
-local function collectGeode(part)
-    if not part or not hrp then return end
-    firetouchinterest(hrp, part, 0)
-    firetouchinterest(hrp, part, 1)
-    task.wait(0.02)
+local autoGeode = false
+local visited = {}
+ 
+local FLY_HEIGHT = 100
+local DROP_HEIGHT = 1
+local SPEED = 100
+local UP_SPEED = 100
+local DOWN_SPEED = 100
+local HOVER_THRESHOLD = 200
+ 
+-- refresh HRP
+local function refreshHRP()
+    local char = player.Character or player.CharacterAdded:Wait()
+    hrp = char:WaitForChild("HumanoidRootPart")
 end
-
--- Scan folder dan update list geode
-local function scanGeodes()
-    local updated = false
+ 
+refreshHRP()
+player.CharacterAdded:Connect(refreshHRP)
+ 
+-- tween helper
+local function tweenToPosition(targetPos, customSpeed)
+    local distance = (hrp.Position - targetPos).Magnitude
+    local time = distance / (customSpeed or SPEED)
+ 
+    local lookVector = hrp.CFrame.LookVector
+    local targetCFrame = CFrame.new(targetPos, targetPos + lookVector)
+ 
+    local tween = TweenService:Create(
+        hrp,
+        TweenInfo.new(time, Enum.EasingStyle.Linear),
+        {CFrame = targetCFrame}
+    )
+ 
+    tween:Play()
+    tween.Completed:Wait()
+end
+ 
+-- collect geode
+local function collectGeode(part)
+    if part and part:FindFirstChildOfClass("TouchTransmitter") then
+        firetouchinterest(hrp, part, 0)
+        firetouchinterest(hrp, part, 1)
+        task.wait(0.35)
+    end
+end
+ 
+-- naik ke atas (untuk toggle ON)
+local function goUp()
+    local currentPos = hrp.Position
+    local targetPos = Vector3.new(currentPos.X, currentPos.Y + FLY_HEIGHT, currentPos.Z)
+    tweenToPosition(targetPos, UP_SPEED)
+end
+ 
+-- cek obstacle pakai raycast
+local function isPathBlocked(targetPos)
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    rayParams.FilterDescendantsInstances = {player.Character}
+    local direction = targetPos - hrp.Position
+    local result = Workspace:Raycast(hrp.Position, direction, rayParams)
+    return result ~= nil
+end
+ 
+-- cari geode terdekat (dynamic)
+local function getNearestGeode()
+    local closestPart = nil
+    local closestModel = nil
+    local shortest = math.huge
+ 
     for _, g in ipairs(geodeFolder:GetChildren()) do
         if g:IsA("Model") then
-            for _, part in ipairs(g:GetDescendants()) do
-                if part:IsA("BasePart") and part:FindFirstChildOfClass("TouchTransmitter") then
-                    if not table.find(unclaimedGeodes, part) then
-                        table.insert(unclaimedGeodes, part)
-                        updated = true
-                    end
+            local part = g:FindFirstChild("Part")
+            if part and part:FindFirstChildOfClass("TouchTransmitter") then
+                local dist = (hrp.Position - part.Position).Magnitude
+                if dist < shortest then
+                    shortest = dist
+                    closestPart = part
+                    closestModel = g
                 end
             end
-        elseif g:IsA("BasePart") and g:FindFirstChildOfClass("TouchTransmitter") then
-            if not table.find(unclaimedGeodes, g) then
-                table.insert(unclaimedGeodes, g)
-                updated = true
-            end
         end
     end
-    return updated
+ 
+    return closestModel, closestPart
 end
-
--- Collect semua geode dari list
-local function collectAllUnclaimed()
-    for i = #unclaimedGeodes, 1, -1 do
-        local part = unclaimedGeodes[i]
-        if part and part.Parent then
-            collectGeode(part)
-        else
-            table.remove(unclaimedGeodes, i)
-        end
-    end
-end
-
--- Loop utama (lebih ringan)
+ 
+-- loop utama
 task.spawn(function()
-    local scanTimer = 0
     while true do
-        if InstantGeodeEnabled then
-            scanTimer = scanTimer + 0.1
-            if scanTimer >= 1 then
-                scanGeodes()  -- Scan hanya tiap 1 detik
-                scanTimer = 0
+        if autoGeode and hrp then
+            local model, part = getNearestGeode()
+ 
+            if model and part then
+                local basePos = part.Position
+ 
+                -- hitung jarak horizontal (XZ plane)
+                local hrpXZ = Vector3.new(hrp.Position.X, 0, hrp.Position.Z)
+                local baseXZ = Vector3.new(basePos.X, 0, basePos.Z)
+                local horizontalDist = (hrpXZ - baseXZ).Magnitude
+ 
+                local blocked = isPathBlocked(basePos)
+ 
+                if horizontalDist < HOVER_THRESHOLD and not blocked then
+                    -- dekat & jalur clear → langsung turun
+                    tweenToPosition(basePos + Vector3.new(0, DROP_HEIGHT, 0), SPEED)
+                else
+                    -- jarak jauh atau ada obstacle → hover
+                    local hoverPos = Vector3.new(hrp.Position.X, basePos.Y + FLY_HEIGHT, hrp.Position.Z)
+                    tweenToPosition(hoverPos, UP_SPEED)
+ 
+                    tweenToPosition(basePos + Vector3.new(0, FLY_HEIGHT, 0))
+ 
+                    tweenToPosition(basePos + Vector3.new(0, DROP_HEIGHT, 0), DOWN_SPEED)
+                end
+ 
+                task.wait(0.1)
+                collectGeode(part)
+ 
+                -- tandai sudah dikunjungi untuk session ini
+                visited[model] = tick()
+            else
+                task.wait(1)
             end
-            if #unclaimedGeodes > 0 then
-                collectAllUnclaimed()  -- Collect semua geode instan
+        end
+        task.wait(0.1)
+    end
+end)
+ 
+-- toggle
+TabFarm:CreateSection("Geodes 💎")
+TabFarm:CreateToggle({
+    Name = "Auto Geode 💎",
+    CurrentValue = false,
+    Callback = function(v)
+        autoGeode = v
+ 
+        if v and hrp then
+            goUp()
+        end
+ 
+        if not v then
+            visited = {}
+        end
+    end
+})
+
+-- AUTO EGG HUNT 🐰🥚
+-- Mirip Auto Geode, Smart Hover + Obstacle + Respawn Safe
+
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local hrp = nil
+local autoEgg = false
+local visited = {}
+
+local FLY_HEIGHT = 100
+local DROP_HEIGHT = 1
+local SPEED = 100
+local UP_SPEED = 120
+local DOWN_SPEED = 120
+
+-- refresh HRP
+local function refreshHRP()
+    local char = player.Character or player.CharacterAdded:Wait()
+    hrp = char:WaitForChild("HumanoidRootPart")
+end
+refreshHRP()
+player.CharacterAdded:Connect(refreshHRP)
+
+-- tween helper
+local function tweenToPosition(targetPos, customSpeed)
+    local distance = (hrp.Position - targetPos).Magnitude
+    local time = distance / (customSpeed or SPEED)
+
+    local lookVector = hrp.CFrame.LookVector
+    local targetCFrame = CFrame.new(targetPos, targetPos + lookVector)
+
+    local tween = TweenService:Create(
+        hrp,
+        TweenInfo.new(time, Enum.EasingStyle.Linear),
+        {CFrame = targetCFrame}
+    )
+
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+-- collect egg
+local function collectEgg(part)
+    if part and part:FindFirstChildOfClass("TouchTransmitter") then
+        firetouchinterest(hrp, part, 0)
+        firetouchinterest(hrp, part, 1)
+        task.wait(0.35)
+    end
+end
+
+-- naik ke atas (untuk toggle ON)
+local function goUp()
+    local currentPos = hrp.Position
+    local targetPos = Vector3.new(currentPos.X, currentPos.Y + FLY_HEIGHT, currentPos.Z)
+    tweenToPosition(targetPos, UP_SPEED)
+end
+
+-- cek obstacle pakai raycast
+local function isPathBlocked(targetPos)
+    local rayParams = RaycastParams.new()
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    rayParams.FilterDescendantsInstances = {player.Character}
+    local direction = targetPos - hrp.Position
+    local result = Workspace:Raycast(hrp.Position, direction, rayParams)
+    return result ~= nil
+end
+
+-- cari egg terdekat (dynamic)
+local function getNearestEgg()
+    local closestPart = nil
+    local closestModel = nil
+    local shortest = math.huge
+
+    if not Workspace:FindFirstChild("Geode") then return nil,nil end
+    local geodeFolder = Workspace.Geode
+
+    for _, eggModel in ipairs(geodeFolder:GetChildren()) do
+        if eggModel.Name == "EasterEgg" then
+            local part = eggModel:FindFirstChild("Traditional Painted Egg")
+            if part and part:FindFirstChildOfClass("TouchTransmitter") then
+                local dist = (hrp.Position - part.Position).Magnitude
+                if dist < shortest then
+                    shortest = dist
+                    closestPart = part
+                    closestModel = eggModel
+                end
+            end
+        end
+    end
+
+    return closestModel, closestPart
+end
+
+-- loop utama
+task.spawn(function()
+    while true do
+        if autoEgg and hrp then
+            local model, part = getNearestEgg()
+            if model and part then
+                local basePos = part.Position
+
+                -- path obstacle check
+                local blocked = isPathBlocked(basePos)
+
+                -- langsung ke egg tanpa limit jarak
+                if not blocked then
+                    tweenToPosition(basePos + Vector3.new(0, DROP_HEIGHT, 0), SPEED)
+                else
+                    local hoverPos = Vector3.new(hrp.Position.X, basePos.Y + FLY_HEIGHT, hrp.Position.Z)
+                    tweenToPosition(hoverPos, UP_SPEED)
+                    tweenToPosition(basePos + Vector3.new(0, FLY_HEIGHT, 0))
+                    tweenToPosition(basePos + Vector3.new(0, DROP_HEIGHT, 0), DOWN_SPEED)
+                end
+
+                task.wait(0.1)
+                collectEgg(part)
+
+                -- tandai sudah dikunjungi
+                visited[model] = tick()
+            else
+                task.wait(1)
             end
         end
         task.wait(0.1)
     end
 end)
 
--- Toggle Rayfield UI
+-- toggle UI
+TabFarm:CreateSection("Egg Hunt 🐰🥚")
 TabFarm:CreateToggle({
-    Name = "Instant Geode 💎",
+    Name = "Auto Egg Hunt 🐰🥚",
     CurrentValue = false,
-    Flag = "InstantGeodeToggleOptimized",
-    Callback = function(Value)
-        InstantGeodeEnabled = Value
-    end,
+    Callback = function(v)
+        autoEgg = v
+        if v and hrp then
+            goUp()
+        end
+        if not v then
+            visited = {}
+        end
+    end
 })
 
 -- === Fix HRP After Reset/Death ===
 local player = game.Players.LocalPlayer
-
+ 
 local function refreshHRP()
     local char = player.Character or player.CharacterAdded:Wait()
     local newHRP = char:WaitForChild("HumanoidRootPart", 10)
@@ -414,10 +653,10 @@ local function refreshHRP()
         hrp = newHRP
     end
 end
-
+ 
 -- Trigger pertama saat load
 refreshHRP()
-
+ 
 -- Update HRP tiap kali karakter respawn
 player.CharacterAdded:Connect(function(char)
     local newHRP = char:WaitForChild("HumanoidRootPart", 10)
@@ -425,6 +664,52 @@ player.CharacterAdded:Connect(function(char)
         hrp = newHRP
     end
 end)
+
+-- TAB QUEST 📜
+local TabQuest = Window:CreateTab("Take Quest 📜")
+
+TabQuest:CreateSection("Dredge Master 🛥️📜")
+
+-- BUTTON: TAKE QUEST
+TabQuest:CreateButton({
+    Name = "Take Quest 🤝📜",
+    Callback = function()
+        -- Open Quest
+        local args1 = {
+            game:GetService("ReplicatedStorage"):WaitForChild("Quests"):WaitForChild("DredgeMaster")
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Quests"):WaitForChild("CanStartQuest"):InvokeServer(unpack(args1))
+
+        task.wait(0.2)
+
+        -- Start Quest
+        local args2 = {
+            game:GetService("ReplicatedStorage"):WaitForChild("Quests"):WaitForChild("DredgeMaster"),
+            [3] = "DredgeMaster"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Quests"):WaitForChild("StartQuest"):InvokeServer(unpack(args2))
+    end
+})
+
+-- BUTTON: COMPLETE QUEST
+TabQuest:CreateButton({
+    Name = "Completed Quest 📜✅",
+    Callback = function()
+        -- Step 1
+        local args1 = {
+            game:GetService("ReplicatedStorage"):WaitForChild("Quests"):WaitForChild("DredgeMaster")
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Quests"):WaitForChild("CanStartQuest"):InvokeServer(unpack(args1))
+
+        task.wait(0.2)
+
+        -- Step 2
+        local args2 = {
+            "DredgeMaster"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Quests"):WaitForChild("QuestTalked"):FireServer(unpack(args2))
+    end
+})
 
 -- TAB Automation 🔄
 local TabSystem = Window:CreateTab("Automation 🔄")
@@ -992,43 +1277,13 @@ task.spawn(function()
 		end
 	end
 end)
- 
+
 -- 🛠️ TAB: Misc 
 local TabMisc = Window:CreateTab("Misc 🛠️")
- 
--- Services
-local Players = game:GetService("Players")
-local RS = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
-local BackpackTwo = LocalPlayer:WaitForChild("BackpackTwo")
-local VirtualUser = game:GetService("VirtualUser")
-local VirtualInputManager = game:GetService("VirtualInputManager")
- 
--- Humanoid detect + simpan default game
-local humanoid = LocalPlayer.Character and LocalPlayer.Character:WaitForChild("Humanoid")
-local DefaultWalkSpeed = humanoid and humanoid.WalkSpeed or 16
- 
-LocalPlayer.CharacterAdded:Connect(function(char)
-    humanoid = char:WaitForChild("Humanoid")
-    DefaultWalkSpeed = humanoid.WalkSpeed
-end)
- 
--- 🔮 Enchant Pan Anywhere
-TabMisc:CreateButton({
-    Name = "Enchant Pan 🔮",
-    Callback = function()
-        local rerollItem = BackpackTwo:FindFirstChild("Aetherite") or BackpackTwo:FindFirstChild("Aurorite")
-        if rerollItem then
-            Rayfield:Notify({Title = "Proses Enchant ✨", Content = "Sedang mencoba enchant pan...", Duration = 2.5})
-            task.wait(2.5)
-            RS.Remotes.Crafting.Enchant:InvokeServer(rerollItem)
-            Rayfield:Notify({Title = "Enchant Berhasil ✅", Content = "Item berhasil di-enchant!", Duration = 2})
-        else
-            Rayfield:Notify({Title = "Gagal ❌", Content = "Aetherite/Aurorite-nya Mana Blokk🗿", Duration = 3})
-        end
-    end,
-})
- 
+
+-- ===== SECTION: Reforge =====
+TabMisc:CreateSection("Reforge Anywhere 🔧")
+
 -- 🔧 Reforge Anywhere
 TabMisc:CreateButton({
     Name = "Reforge Anywhere 🔧",
@@ -1038,70 +1293,97 @@ TabMisc:CreateButton({
             Rayfield:Notify({Title = "No Tool Found", Content = "Harap pegang item dulu sebelum reforge.", Duration = 1})
             return
         end
- 
+
         local cost
-        local successCost, errCost = pcall(function()
+        local successCost = pcall(function()
             cost = RS.Remotes.Crafting.GetReforgeCost:InvokeServer(tool)
         end)
-        if not successCost then
-            Rayfield:Notify({Title = "Error", Content = "Gagal mengambil biaya reforge: " .. tostring(errCost), Duration = 1})
-            return
-        end
- 
-        Rayfield:Notify({Title = "Reforge Cost", Content = "Biaya reforge item ini: " .. tostring(cost), Duration = 1})
+
+        if not successCost then return end
+
         task.wait(0.25)
- 
-        local result
-        local success, err = pcall(function()
-            result = RS.Remotes.Crafting.ReforgeEquipment:InvokeServer(tool)
+
+        local success, result = pcall(function()
+            return RS.Remotes.Crafting.ReforgeEquipment:InvokeServer(tool)
         end)
- 
+
         if success and result then
             Rayfield:Notify({Title = "Reforge Success!", Content = "Item berhasil di-reforge ⚡", Duration = 1})
-        else
-            Rayfield:Notify({Title = "Reforge Failed", Content = "Terjadi error: " .. tostring(err or result), Duration = 1})
         end
     end
 })
- 
--- ⚡ WalkSpeed Input
+
+-- WalkSpeed ⚡
+TabMisc:CreateSection("WalkSpeed ⚡")
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local function getHumanoid()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    return char:FindFirstChildOfClass("Humanoid")
+end
+
+local humanoid = getHumanoid()
+local DefaultWalkSpeed = humanoid and humanoid.WalkSpeed or 16
+
+local desiredSpeed = DefaultWalkSpeed
+local walkSpeedEnabled = false
+
+-- update humanoid saat respawn
+LocalPlayer.CharacterAdded:Connect(function()
+    humanoid = getHumanoid()
+    if walkSpeedEnabled and humanoid then
+        humanoid.WalkSpeed = desiredSpeed
+    end
+end)
+
 TabMisc:CreateInput({
     Name = "Set WalkSpeed ⚡",
     PlaceholderText = "Masukkan angka (max 1000)",
-    RemoveTextAfterFocusLost = true,
+    RemoveTextAfterFocusLost = false,
     Callback = function(value)
         local num = tonumber(value)
-        if humanoid and num then
+        if num then
             if num > 1000 then num = 1000 end
             if num < 0 then num = 0 end
-            humanoid.WalkSpeed = num
-            Rayfield:Notify({Title = "WalkSpeed Updated ✅", Content = "WalkSpeed diatur ke " .. num, Duration = 2})
-        end
-    end,
-})
- 
-TabMisc:CreateButton({
-    Name = "Reset WalkSpeed 🔄",
-    Callback = function()
-        if humanoid then
-            humanoid.WalkSpeed = DefaultWalkSpeed
-            Rayfield:Notify({Title = "Reset WalkSpeed ✅", Content = "WalkSpeed kembali ke bawaan game (" .. DefaultWalkSpeed .. ").", Duration = 2})
+            desiredSpeed = num
+
+            if walkSpeedEnabled and humanoid then
+                humanoid.WalkSpeed = desiredSpeed
+            end
         end
     end,
 })
 
--- ⚡ Instant Interact (No Hold)
+TabMisc:CreateToggle({
+    Name = "Enable WalkSpeed ⚡",
+    CurrentValue = false,
+    Callback = function(state)
+        walkSpeedEnabled = state
+        if humanoid then
+            if state then
+                humanoid.WalkSpeed = desiredSpeed
+            else
+                humanoid.WalkSpeed = DefaultWalkSpeed
+            end
+        end
+    end
+})
+
+-- Instant Interact ⚡
+TabMisc:CreateSection("Instant Interact ⚡")
 
 local instantEnabled = false
 local originalDurations = {}
 
 local function applyInstant()
-    for _, prompt in ipairs(workspace:GetDescendants()) do
-        if prompt:IsA("ProximityPrompt") then
-            if not originalDurations[prompt] then
-                originalDurations[prompt] = prompt.HoldDuration
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            if not originalDurations[obj] then
+                originalDurations[obj] = obj.HoldDuration
             end
-            prompt.HoldDuration = 0
+            obj.HoldDuration = 0
         end
     end
 end
@@ -1112,16 +1394,18 @@ local function restoreHold()
             prompt.HoldDuration = duration
         end
     end
+    table.clear(originalDurations) -- penting biar ga numpuk
 end
 
--- detect prompt baru
 workspace.DescendantAdded:Connect(function(obj)
     if instantEnabled and obj:IsA("ProximityPrompt") then
         task.wait()
-        if not originalDurations[obj] then
-            originalDurations[obj] = obj.HoldDuration
+        if obj and obj.Parent then
+            if not originalDurations[obj] then
+                originalDurations[obj] = obj.HoldDuration
+            end
+            obj.HoldDuration = 0
         end
-        obj.HoldDuration = 0
     end
 end)
 
@@ -1130,21 +1414,63 @@ TabMisc:CreateToggle({
     CurrentValue = false,
     Callback = function(v)
         instantEnabled = v
-
         if v then
             applyInstant()
-            Rayfield:Notify({
-                Title = "Instant Interact Aktif ✅",
-                Content = "Tidak perlu tahan tombol lagi.",
-                Duration = 2
-            })
         else
             restoreHold()
-            Rayfield:Notify({
-                Title = "Instant Interact Nonaktif ❌",
-                Content = "Durasi kembali normal.",
-                Duration = 2
-            })
+        end
+    end
+})
+
+-- ===== SECTION: No Clip =====
+TabMisc:CreateSection("No Clip 👻")
+
+-- (script noclip lo tetap sama di sini)
+local noclipEnabled = false
+local savedStates = {}
+
+task.spawn(function()
+    while true do
+        if noclipEnabled then
+            local char = LocalPlayer.Character
+            if char then
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end
+        task.wait(0.1)
+    end
+end)
+
+TabMisc:CreateToggle({
+    Name = "No Clip 👻",
+    CurrentValue = false,
+    Callback = function(state)
+        noclipEnabled = state
+        local char = LocalPlayer.Character
+        if not char then return end
+
+        if state then
+            savedStates = {}
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    savedStates[part] = {CanCollide = part.CanCollide}
+                end
+            end
+
+            Rayfield:Notify({Title = "No Clip ON 👻", Content = "State disimpan & noclip aktif", Duration = 2})
+        else
+            for part, data in pairs(savedStates) do
+                if part and part.Parent then
+                    part.CanCollide = data.CanCollide
+                end
+            end
+            savedStates = {}
+
+            Rayfield:Notify({Title = "No Clip OFF ❌", Content = "Collision kembali ke bawaan", Duration = 2})
         end
     end
 })
