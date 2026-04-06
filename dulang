@@ -1313,12 +1313,10 @@ TabMisc:CreateButton({
     end
 })
 
--- WalkSpeed ⚡
+-- WalkSpeed ⚡ FINAL
 TabMisc:CreateSection("WalkSpeed ⚡")
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
 local LocalPlayer = Players.LocalPlayer
 
 local humanoid
@@ -1327,7 +1325,7 @@ local DefaultWalkSpeed = 16
 local desiredSpeed = 16
 local walkSpeedEnabled = false
 
--- ambil humanoid
+-- ambil humanoid aman
 local function getHumanoid()
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     return char:WaitForChild("Humanoid")
@@ -1339,25 +1337,27 @@ local function setupCharacter()
     DefaultWalkSpeed = humanoid.WalkSpeed
 
     if walkSpeedEnabled then
-        task.wait() -- biar ga ketabrak script game pas spawn
+        task.wait()
         humanoid.WalkSpeed = desiredSpeed
     end
 end
 
 setupCharacter()
-
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
--- 🔥 anti reset SUPER (lebih kuat)
+-- 🔥 anti reset (smooth, ga ganggu UI)
 task.spawn(function()
     while true do
         if walkSpeedEnabled and humanoid then
-            humanoid.WalkSpeed = desiredSpeed
+            if humanoid.WalkSpeed ~= desiredSpeed then
+                humanoid.WalkSpeed = desiredSpeed
+            end
         end
-        task.wait(0.1) -- jangan terlalu cepet biar ga ke-detect / bentrok
+        task.wait(0.15)
     end
 end)
 
+-- INPUT
 TabMisc:CreateInput({
     Name = "Set WalkSpeed ⚡",
     PlaceholderText = "Masukkan angka (max 1000)",
@@ -1366,10 +1366,22 @@ TabMisc:CreateInput({
         local num = tonumber(value)
         if num then
             desiredSpeed = math.clamp(num, 0, 1000)
+
+            -- 🔔 notif (durasi 2 detik)
+            Rayfield:Notify({
+                Title = "WalkSpeed",
+                Content = "Diset ke " .. desiredSpeed,
+                Duration = 2
+            })
+
+            if walkSpeedEnabled and humanoid then
+                humanoid.WalkSpeed = desiredSpeed
+            end
         end
     end,
 })
 
+-- TOGGLE
 TabMisc:CreateToggle({
     Name = "Enable WalkSpeed ⚡",
     CurrentValue = false,
@@ -1383,6 +1395,13 @@ TabMisc:CreateToggle({
                 humanoid.WalkSpeed = DefaultWalkSpeed
             end
         end
+
+        -- 🔔 notif toggle
+        Rayfield:Notify({
+            Title = "WalkSpeed",
+            Content = state and "Diaktifkan" or "Dimatikan",
+            Duration = 2
+        })
     end
 })
 
