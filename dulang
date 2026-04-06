@@ -1317,24 +1317,44 @@ TabMisc:CreateButton({
 TabMisc:CreateSection("WalkSpeed ⚡")
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
 local LocalPlayer = Players.LocalPlayer
 
-local function getHumanoid()
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    return char:FindFirstChildOfClass("Humanoid")
-end
+local humanoid
+local DefaultWalkSpeed = 16
 
-local humanoid = getHumanoid()
-local DefaultWalkSpeed = humanoid and humanoid.WalkSpeed or 16
-
-local desiredSpeed = DefaultWalkSpeed
+local desiredSpeed = 16
 local walkSpeedEnabled = false
 
--- update humanoid saat respawn
-LocalPlayer.CharacterAdded:Connect(function()
+-- ambil humanoid
+local function getHumanoid()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    return char:WaitForChild("Humanoid")
+end
+
+-- setup karakter
+local function setupCharacter()
     humanoid = getHumanoid()
-    if walkSpeedEnabled and humanoid then
+    DefaultWalkSpeed = humanoid.WalkSpeed
+
+    if walkSpeedEnabled then
+        task.wait() -- biar ga ketabrak script game pas spawn
         humanoid.WalkSpeed = desiredSpeed
+    end
+end
+
+setupCharacter()
+
+LocalPlayer.CharacterAdded:Connect(setupCharacter)
+
+-- 🔥 anti reset SUPER (lebih kuat)
+task.spawn(function()
+    while true do
+        if walkSpeedEnabled and humanoid then
+            humanoid.WalkSpeed = desiredSpeed
+        end
+        task.wait(0.1) -- jangan terlalu cepet biar ga ke-detect / bentrok
     end
 end)
 
@@ -1345,13 +1365,7 @@ TabMisc:CreateInput({
     Callback = function(value)
         local num = tonumber(value)
         if num then
-            if num > 1000 then num = 1000 end
-            if num < 0 then num = 0 end
-            desiredSpeed = num
-
-            if walkSpeedEnabled and humanoid then
-                humanoid.WalkSpeed = desiredSpeed
-            end
+            desiredSpeed = math.clamp(num, 0, 1000)
         end
     end,
 })
@@ -1361,6 +1375,7 @@ TabMisc:CreateToggle({
     CurrentValue = false,
     Callback = function(state)
         walkSpeedEnabled = state
+
         if humanoid then
             if state then
                 humanoid.WalkSpeed = desiredSpeed
