@@ -1470,6 +1470,57 @@ TabMisc:CreateToggle({
     end
 })
 
+-- ===== SECTION: Instant Interact =====
+TabMisc:CreateSection("Instant Interact ⚡")
+
+local instantInteractEnabled = false
+local promptConnection = nil
+
+-- function apply ke semua prompt
+local function applyInstant()
+    for _, v in pairs(game:GetDescendants()) do
+        if v:IsA("ProximityPrompt") then
+            v.HoldDuration = 0
+        end
+    end
+end
+
+TabMisc:CreateToggle({
+    Name = "Instant Interact ⚡",
+    CurrentValue = false,
+    Callback = function(state)
+        instantInteractEnabled = state
+
+        if state then
+            applyInstant()
+
+            -- handle prompt baru yang spawn
+            promptConnection = game.DescendantAdded:Connect(function(v)
+                if v:IsA("ProximityPrompt") and instantInteractEnabled then
+                    v.HoldDuration = 0
+                end
+            end)
+
+            Rayfield:Notify({
+                Title = "Instant Interact",
+                Content = "Aktif ⚡ (No Hold)",
+                Duration = 2
+            })
+        else
+            if promptConnection then
+                promptConnection:Disconnect()
+                promptConnection = nil
+            end
+
+            Rayfield:Notify({
+                Title = "Instant Interact",
+                Content = "Dimatikan ❌",
+                Duration = 2
+            })
+        end
+    end
+})
+
 -- ===== SECTION: No Clip =====
 TabMisc:CreateSection("No Clip 👻")
 
