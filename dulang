@@ -1475,14 +1475,28 @@ TabMisc:CreateSection("Instant Interact ⚡")
 
 local instantInteractEnabled = false
 local promptConnection = nil
+local savedDurations = {}
 
--- function apply ke semua prompt
+-- apply instant + simpan nilai asli
 local function applyInstant()
     for _, v in pairs(game:GetDescendants()) do
         if v:IsA("ProximityPrompt") then
+            if savedDurations[v] == nil then
+                savedDurations[v] = v.HoldDuration
+            end
             v.HoldDuration = 0
         end
     end
+end
+
+-- balikin ke normal
+local function restoreInstant()
+    for prompt, duration in pairs(savedDurations) do
+        if prompt and prompt.Parent then
+            prompt.HoldDuration = duration
+        end
+    end
+    savedDurations = {}
 end
 
 TabMisc:CreateToggle({
@@ -1494,16 +1508,16 @@ TabMisc:CreateToggle({
         if state then
             applyInstant()
 
-            -- handle prompt baru yang spawn
             promptConnection = game.DescendantAdded:Connect(function(v)
                 if v:IsA("ProximityPrompt") and instantInteractEnabled then
+                    savedDurations[v] = v.HoldDuration
                     v.HoldDuration = 0
                 end
             end)
 
             Rayfield:Notify({
                 Title = "Instant Interact",
-                Content = "Aktif ⚡ (No Hold)",
+                Content = "Aktif ⚡",
                 Duration = 2
             })
         else
@@ -1512,9 +1526,11 @@ TabMisc:CreateToggle({
                 promptConnection = nil
             end
 
+            restoreInstant()
+
             Rayfield:Notify({
                 Title = "Instant Interact",
-                Content = "Dimatikan ❌",
+                Content = "Dimatikan ❌ (Normal lagi)",
                 Duration = 2
             })
         end
