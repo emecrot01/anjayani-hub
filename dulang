@@ -1474,30 +1474,37 @@ TabMisc:CreateToggle({
 TabMisc:CreateSection("Instant Interact ⚡")
 
 local instantInteractEnabled = false
-local promptConnection = nil
 local savedDurations = {}
 
--- apply instant + simpan nilai asli
-local function applyInstant()
-    for _, v in pairs(game:GetDescendants()) do
-        if v:IsA("ProximityPrompt") then
-            if savedDurations[v] == nil then
-                savedDurations[v] = v.HoldDuration
-            end
-            v.HoldDuration = 0
-        end
-    end
-end
+-- loop utama (2 arah)
+task.spawn(function()
+    while true do
+        for _, v in pairs(game:GetDescendants()) do
+            if v:IsA("ProximityPrompt") then
 
--- balikin ke normal
-local function restoreInstant()
-    for prompt, duration in pairs(savedDurations) do
-        if prompt and prompt.Parent then
-            prompt.HoldDuration = duration
+                -- simpan original sekali
+                if savedDurations[v] == nil then
+                    savedDurations[v] = v.HoldDuration
+                end
+
+                if instantInteractEnabled then
+                    -- ON → paksa 0
+                    if v.HoldDuration ~= 0 then
+                        v.HoldDuration = 0
+                    end
+                else
+                    -- OFF → paksa balik normal
+                    local original = savedDurations[v]
+                    if original and v.HoldDuration ~= original then
+                        v.HoldDuration = original
+                    end
+                end
+
+            end
         end
+        task.wait(0.15)
     end
-    savedDurations = {}
-end
+end)
 
 TabMisc:CreateToggle({
     Name = "Instant Interact ⚡",
@@ -1505,35 +1512,11 @@ TabMisc:CreateToggle({
     Callback = function(state)
         instantInteractEnabled = state
 
-        if state then
-            applyInstant()
-
-            promptConnection = game.DescendantAdded:Connect(function(v)
-                if v:IsA("ProximityPrompt") and instantInteractEnabled then
-                    savedDurations[v] = v.HoldDuration
-                    v.HoldDuration = 0
-                end
-            end)
-
-            Rayfield:Notify({
-                Title = "Instant Interact",
-                Content = "Aktif ⚡",
-                Duration = 2
-            })
-        else
-            if promptConnection then
-                promptConnection:Disconnect()
-                promptConnection = nil
-            end
-
-            restoreInstant()
-
-            Rayfield:Notify({
-                Title = "Instant Interact",
-                Content = "Dimatikan ❌ (Normal lagi)",
-                Duration = 2
-            })
-        end
+        Rayfield:Notify({
+            Title = "Instant Interact",
+            Content = state and "Aktif ⚡" or "Dimatikan ❌ (Langsung Normal)",
+            Duration = 2
+        })
     end
 })
 
