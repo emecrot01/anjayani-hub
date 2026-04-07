@@ -100,7 +100,7 @@ local savedSandCF, savedWaterCF = nil, nil
 local autoFarm = false
 local currentTween = nil
 
-local TWEEN_SPEED = 60
+local TWEEN_SPEED = 70
 
 local function randDelay(min, max)
     task.wait(math.random()*(max-min)+min)
