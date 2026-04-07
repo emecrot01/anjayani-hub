@@ -1473,49 +1473,22 @@ TabMisc:CreateToggle({
 -- ===== SECTION: Instant Interact =====
 TabMisc:CreateSection("Instant Interact ⚡")
 
-local instantInteractEnabled = false
-local savedDurations = {}
+TabMisc:CreateButton({
+    Name = "Activate Instant Interact ⚡",
+    Callback = function()
+        local count = 0
 
--- loop utama (2 arah)
-task.spawn(function()
-    while true do
-        for _, v in pairs(game:GetDescendants()) do
+        for _, v in ipairs(game:GetDescendants()) do
             if v:IsA("ProximityPrompt") then
-
-                -- simpan original sekali
-                if savedDurations[v] == nil then
-                    savedDurations[v] = v.HoldDuration
-                end
-
-                if instantInteractEnabled then
-                    -- ON → paksa 0
-                    if v.HoldDuration ~= 0 then
-                        v.HoldDuration = 0
-                    end
-                else
-                    -- OFF → paksa balik normal
-                    local original = savedDurations[v]
-                    if original and v.HoldDuration ~= original then
-                        v.HoldDuration = original
-                    end
-                end
-
+                v.HoldDuration = 0
+                count += 1
             end
         end
-        task.wait(0.15)
-    end
-end)
-
-TabMisc:CreateToggle({
-    Name = "Instant Interact ⚡",
-    CurrentValue = false,
-    Callback = function(state)
-        instantInteractEnabled = state
 
         Rayfield:Notify({
             Title = "Instant Interact",
-            Content = state and "Aktif ⚡" or "Dimatikan ❌ (Langsung Normal)",
-            Duration = 2
+            Content = "Activated ⚡ (" .. count .. " prompts)\nRejoin jika ingin menonaktifkan Instant Interact",
+            Duration = 3
         })
     end
 })
