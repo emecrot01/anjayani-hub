@@ -119,7 +119,7 @@ local function rotateTo(targetPos)
 
     local rotTween = TweenService:Create(
         hrp,
-        TweenInfo.new(0.05, Enum.EasingStyle.Linear),
+        TweenInfo.new(0.2, Enum.EasingStyle.Linear),
         {CFrame = lookCF}
     )
 
@@ -244,7 +244,7 @@ local function ensurePanStarted()
         if panIsActive() then return true end
         local _, panRemote = getRemotes(getTool())
         if panRemote then callRemote(panRemote) end
-        randDelay(0.08,0.12)
+        randDelay(0.08,0.14)
     end
     return false
 end
@@ -260,7 +260,7 @@ local function startShakeThread()
 
             if tick() - start > 10 then break end
 
-            randDelay(0.4,0.8)
+            randDelay(0.04,0.08)
         end
     end)
 end
@@ -307,7 +307,7 @@ TabFarm:CreateToggle({
         -- AUTO EQUIP
         task.spawn(function()
             while autoFarm do
-                task.wait(5)
+                task.wait(10)
                 local c = character()
                 local hasPan = false
 
@@ -320,7 +320,7 @@ TabFarm:CreateToggle({
 
                 if not hasPan then
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, game)
-                    task.wait(0.05)
+                    task.wait(0.1)
                     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, game)
                 end
             end
