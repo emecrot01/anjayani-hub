@@ -104,10 +104,48 @@ local savedSandCF, savedWaterCF = nil, nil
 local autoFarm = false
 local currentTween = nil
 
-local TWEEN_SPEED = 70
+-- 🔥 FAST TWEEN (ANTI TP + SNAP FEEL)
+local function fastTween(targetCF)
+    local hrp = HRP()
+    if not hrp then return false end
 
-local function randDelay(min, max)
-    task.wait(math.random()*(max-min)+min)
+    if currentTween then
+        pcall(function() currentTween:Cancel() end)
+    end
+
+    local dist = (hrp.Position - targetCF.Position).Magnitude
+    
+    -- ⚡ speed super cepat (bisa kamu adjust)
+    local time = math.clamp(dist / 300, 0.05, 0.12)
+
+    currentTween = TweenService:Create(
+        hrp,
+        TweenInfo.new(time, Enum.EasingStyle.Linear),
+        {CFrame = targetCF}
+    )
+
+    currentTween:Play()
+
+    local start = tick()
+
+    while tick() - start < time + 0.2 do
+        if not autoFarm then return false end
+
+        local h = HRP()
+        if h and (h.Position - targetCF.Position).Magnitude < 3 then
+            return true
+        end
+
+        task.wait()
+    end
+
+    -- fallback biar ga miss dikit
+    local h = HRP()
+    if h then
+        h.CFrame = targetCF
+    end
+
+    return true
 end
 
 -- TOOL
@@ -157,46 +195,8 @@ local function callRemote(remote, ...)
     end, ...)
 end
 
--- 🔥 SAFE TWEEN FINAL (ANTI STUCK TOTAL)
-local function tweenTo(pos)
-    local hrp = HRP()
-    if not hrp then return false end
-
-    if currentTween then
-        pcall(function() currentTween:Cancel() end)
-    end
-
-    local dist = (hrp.Position - pos).Magnitude
-    local time = dist / TWEEN_SPEED
-
-    currentTween = TweenService:Create(
-        hrp,
-        TweenInfo.new(time, Enum.EasingStyle.Linear),
-        {CFrame = CFrame.new(pos)}
-    )
-
-    currentTween:Play()
-
-    local start = tick()
-
-    while tick() - start < time + 2 do
-        if not autoFarm then return false end
-
-        local h = HRP()
-        if h and (h.Position - pos).Magnitude < 4 then
-            return true
-        end
-
-        task.wait()
-    end
-
-    -- kalau gagal, teleport dikit biar ga nyangkut
-    local h = HRP()
-    if h then
-        h.CFrame = CFrame.new(pos)
-    end
-
-    return true
+local function randDelay(min, max)
+    task.wait(math.random()*(max-min)+min)
 end
 
 -- DIG
@@ -217,7 +217,6 @@ local function digUntilFull()
         local collect = select(1,getRemotes(tool))
         if collect then callRemote(collect,1) end
 
-        -- 🔥 anti freeze kalau error
         if tick() - start > 10 then break end
 
         randDelay(0.08,0.15)
@@ -245,7 +244,6 @@ local function startShakeThread()
             local _,_,shake = getRemotes(getTool())
             if shake then callRemote(shake) end
 
-            -- 🔥 anti infinite
             if tick() - start > 10 then break end
 
             randDelay(0.04,0.07)
@@ -262,7 +260,7 @@ TabFarm:CreateButton({
         local h=HRP()
         if h then
             savedSandCF=h.CFrame
-            Rayfield:Notify({Title="Dig Area ⛏️", Content="Saved ✅", Duration=2})
+            Rayfield:Notify({Title="Dig Area ⛏️", Content="Saved (Arah ikut) ✅", Duration=2})
         end
     end
 })
@@ -273,7 +271,7 @@ TabFarm:CreateButton({
         local h=HRP()
         if h then
             savedWaterCF=h.CFrame
-            Rayfield:Notify({Title="Water Area 💧", Content="Saved ✅", Duration=2})
+            Rayfield:Notify({Title="Water Area 💧", Content="Saved (Arah ikut) ✅", Duration=2})
         end
     end
 })
@@ -289,7 +287,7 @@ TabFarm:CreateToggle({
             Rayfield:Notify({Title="Auto Farm", Content="Stopped ❌", Duration=2})
             return
         else
-            Rayfield:Notify({Title="Auto Farm", Content="Started ✅ (Stable)", Duration=2})
+            Rayfield:Notify({Title="Auto Farm", Content="Started ⚡ (Fast Tween)", Duration=2})
         end
 
         -- AUTO EQUIP
@@ -314,7 +312,7 @@ TabFarm:CreateToggle({
             end
         end)
 
-        -- MAIN LOOP FINAL
+        -- MAIN LOOP
         task.spawn(function()
             while autoFarm do
                 if savedSandCF and savedWaterCF then
@@ -323,14 +321,14 @@ TabFarm:CreateToggle({
 
                     if tool and cap and fill then
                         if fill < cap then
-                            tweenTo(savedSandCF.Position)
+                            fastTween(savedSandCF)
                             digUntilFull()
                         else
-                            tweenTo(savedWaterCF.Position)
+                            fastTween(savedWaterCF)
 
                             if ensurePanStarted() then
                                 startShakeThread()
-                                tweenTo(savedSandCF.Position)
+                                fastTween(savedSandCF)
                             end
                         end
                     end
