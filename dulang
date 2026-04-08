@@ -702,7 +702,7 @@ player.CharacterAdded:Connect(function(char)
     if newHRP then
         hrp = newHRP
     end
-end
+end)
 
 -- TAB QUEST 📜
 local TabQuest = Window:CreateTab("Take Quest 📜")
