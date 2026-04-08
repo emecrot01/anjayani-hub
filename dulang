@@ -219,7 +219,7 @@ local function digUntilFull()
 
         if tick() - start > 10 then break end
 
-        randDelay(0.08,0.15)
+        randDelay(0.06,0.10)
     end
 
     VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
@@ -230,7 +230,7 @@ local function ensurePanStarted()
         if panIsActive() then return true end
         local _, panRemote = getRemotes(getTool())
         if panRemote then callRemote(panRemote) end
-        randDelay(0.08,0.12)
+        randDelay(0.07,0.10)
     end
     return false
 end
@@ -246,7 +246,7 @@ local function startShakeThread()
 
             if tick() - start > 10 then break end
 
-            randDelay(0.04,0.07)
+            randDelay(0.03,0.05)
         end
     end)
 end
