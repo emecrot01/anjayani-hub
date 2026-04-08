@@ -104,7 +104,7 @@ local savedSandCF, savedWaterCF = nil, nil
 local autoFarm = false
 local currentTween = nil
 
--- 🔥 FAST TWEEN (ANTI TP + SNAP FEEL)
+-- 🔥 FAST TWEEN
 local function fastTween(targetCF)
     local hrp = HRP()
     if not hrp then return false end
@@ -114,8 +114,6 @@ local function fastTween(targetCF)
     end
 
     local dist = (hrp.Position - targetCF.Position).Magnitude
-    
-    -- ⚡ speed super cepat (bisa kamu adjust)
     local time = math.clamp(dist / 300, 0.05, 0.12)
 
     currentTween = TweenService:Create(
@@ -130,21 +128,15 @@ local function fastTween(targetCF)
 
     while tick() - start < time + 0.2 do
         if not autoFarm then return false end
-
         local h = HRP()
         if h and (h.Position - targetCF.Position).Magnitude < 3 then
             return true
         end
-
         task.wait()
     end
 
-    -- fallback biar ga miss dikit
     local h = HRP()
-    if h then
-        h.CFrame = targetCF
-    end
-
+    if h then h.CFrame = targetCF end
     return true
 end
 
@@ -199,14 +191,12 @@ local function randDelay(min, max)
     task.wait(math.random()*(max-min)+min)
 end
 
--- DIG
+-- 🔥 DIG
 local function digUntilFull()
     local tool, cap = equipPan(), getCapacity()
     if not tool or not cap then return end
 
     VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0)
-
-    local start = tick()
 
     while autoFarm do
         tool, cap = equipPan(), getCapacity()
@@ -217,36 +207,55 @@ local function digUntilFull()
         local collect = select(1,getRemotes(tool))
         if collect then callRemote(collect,1) end
 
-        if tick() - start > 10 then break end
-
-        randDelay(0.06,0.10)
+        randDelay(0.06,0.10) -- 🔥 DIG SPEED
     end
 
     VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
 end
 
+-- 🔥 PAN START
 local function ensurePanStarted()
     for _=1,10 do
         if panIsActive() then return true end
         local _, panRemote = getRemotes(getTool())
         if panRemote then callRemote(panRemote) end
-        randDelay(0.07,0.10)
+        randDelay(0.07,0.10) -- 🔥 PAN SPEED
     end
     return false
 end
 
--- SHAKE THREAD
+-- 🔥 SHAKE
 local function startShakeThread()
     task.spawn(function()
-        local start = tick()
-
         while autoFarm and panIsActive() do
             local _,_,shake = getRemotes(getTool())
             if shake then callRemote(shake) end
 
-            if tick() - start > 10 then break end
+            randDelay(0.03,0.05) -- 🔥 SHAKE SPEED
+        end
+    end)
+end
 
-            randDelay(0.03,0.05)
+-- 🔥 OVERLAP: DIG SAAT BALIK
+local function overlapDig()
+    task.spawn(function()
+        local start = tick()
+        while autoFarm and (tick() - start < 1.5) do
+            local collect = select(1,getRemotes(getTool()))
+            if collect then callRemote(collect,1) end
+            randDelay(0.05,0.08)
+        end
+    end)
+end
+
+-- 🔥 OVERLAP: PRE SHAKE
+local function preShake()
+    task.spawn(function()
+        for i=1,5 do
+            if not autoFarm then break end
+            local _,_,shake = getRemotes(getTool())
+            if shake then callRemote(shake) end
+            randDelay(0.04,0.06)
         end
     end)
 end
@@ -260,7 +269,7 @@ TabFarm:CreateButton({
         local h=HRP()
         if h then
             savedSandCF=h.CFrame
-            Rayfield:Notify({Title="Dig Area ⛏️", Content="Saved (Arah ikut) ✅", Duration=2})
+            Rayfield:Notify({Title="Dig Area ⛏️", Content="Saved ✅", Duration=2})
         end
     end
 })
@@ -271,7 +280,7 @@ TabFarm:CreateButton({
         local h=HRP()
         if h then
             savedWaterCF=h.CFrame
-            Rayfield:Notify({Title="Water Area 💧", Content="Saved (Arah ikut) ✅", Duration=2})
+            Rayfield:Notify({Title="Water Area 💧", Content="Saved ✅", Duration=2})
         end
     end
 })
@@ -284,33 +293,8 @@ TabFarm:CreateToggle({
 
         if not v then
             if currentTween then pcall(function() currentTween:Cancel() end) end
-            Rayfield:Notify({Title="Auto Farm", Content="Stopped ❌", Duration=2})
             return
-        else
-            Rayfield:Notify({Title="Auto Farm", Content="Started ⚡ (Fast Tween)", Duration=2})
         end
-
-        -- AUTO EQUIP
-        task.spawn(function()
-            while autoFarm do
-                task.wait(5)
-                local c = character()
-                local hasPan = false
-
-                for _, tool in pairs(c:GetChildren()) do
-                    if tool:IsA("Tool") and tool.Name:lower():find("pan") then
-                        hasPan = true
-                        break
-                    end
-                end
-
-                if not hasPan then
-                    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, game)
-                    task.wait(0.05)
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, game)
-                end
-            end
-        end)
 
         -- MAIN LOOP
         task.spawn(function()
@@ -324,10 +308,12 @@ TabFarm:CreateToggle({
                             fastTween(savedSandCF)
                             digUntilFull()
                         else
+                            preShake() -- 🔥 jalan ke water sambil pre-shake
                             fastTween(savedWaterCF)
 
                             if ensurePanStarted() then
                                 startShakeThread()
+                                overlapDig() -- 🔥 balik sambil dig
                                 fastTween(savedSandCF)
                             end
                         end
