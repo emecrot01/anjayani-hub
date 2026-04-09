@@ -1578,7 +1578,7 @@ local function createPingUI()
                 ping, fps
             )
             
-            task.wait(3) -- jangan spam
+            task.wait(1.5) -- jangan spam
         end
     end)
 end
