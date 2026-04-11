@@ -18,23 +18,20 @@ local Window = Rayfield:CreateWindow({
  
 -- TAB Home 🏠
 local TabHome = Window:CreateTab("Home 🏠")
-TabHome:CreateLabel("Prospecting! 💎 v1.6")
+TabHome:CreateLabel("Prospecting! 💎 v1.6.2")
 TabHome:CreateSection("Changelog")
 TabHome:CreateParagraph({
-    Title = "Prospecting! 💎 v1.6",
+    Title = "Prospecting! 💎 v1.6.2",
     Content = [[
 🎉 Fitur Yang Tersedia:
-• Auto Farm
--Auto Panning ⛏️💧 (Save Dig/Water Area, Auto Panning) New System (More Faster)
+• Auto Farm⛏️💧
+-Auto Panning ⛏️💧 & Waypoint 📍🗺️
 -Auto Collect + Shake ⛏️💧 (Manual Movement 👟)
 -Auto Geode (New Method)
--Auto Hunt EasterEgg 🐰🥚 (New Feature & Limited)
 
 • Take Quest 📜 (NEW FEATURE)
 -Dredge Master Quest 🛥️📜
-
-• Auto Fav/Sell 🌟/💰 
-Di Gabung Ke 1 Tab Dan  Di Perbarui Ke Versi Terbaru Dengan Sistem Yang Lebih Simpel (Menggunakan Sistem Dropdown)
+-Auto Excavation ⛏️🗺️
 
 • Webhooks 🌐
 Menambahkan Fitur Baru Yaitu Webhooks (Hanya Terhubung Ke Webhooks Milik Owner Script Ini)
@@ -52,11 +49,9 @@ Menambahkan Fitur Baru Yaitu Webhooks (Hanya Terhubung Ke Webhooks Milik Owner S
 🛠️ Fixed
 • Shake Sambil Berjalan (Saat Melakukan Shake, Karakter Akan Kembali Ke Area Penggalian Dan Melakukan Shake Disana)
 
-🚨 Update Soon
-Already Updates
-
-🗑️ Removed Feature
-• No Clip
+🚨 New Feature Added
+• Waypoints 🗺️📍
+• Auto Excavation ⛏️🗺️ (Testing)
 
     ]]
 })
@@ -89,7 +84,7 @@ task.spawn(function()
 end)
 
 -- TAB Auto Farm ⛏️
-local TabFarm = Window:CreateTab("Auto Farm ⛏️💧")
+local TabFarm = Window:CreateTab("Auto Farm ⛏️💧 & Waypoint 📍🗺️")
 
 local Players = game:GetService("Players")
 local VirtualInputManager = game:GetService("VirtualInputManager")
@@ -266,7 +261,7 @@ local function startShakeThread()
 end
 
 -- UI
-TabFarm:CreateSection("Auto Panning ⛏️💧")
+TabFarm:CreateSection("Auto Panning ⛏️💧 & Waypoint Everywhere 📍🗺️ ")
 
 TabFarm:CreateButton({
     Name="Dig Position ⛏️",
@@ -351,6 +346,24 @@ TabFarm:CreateToggle({
                 task.wait(0.1)
             end
         end)
+    end
+})
+
+TabFarm:CreateButton({
+    Name = "📍🗺️ Open Waypoint Anywhere 🗺️📍",
+    Callback = function()
+        for _, wp in pairs(workspace.Map.Waypoints:GetDescendants()) do
+            if wp:IsA("ProximityPrompt") then
+                fireproximityprompt(wp)
+                break
+            end
+        end
+
+        Rayfield:Notify({
+            Title = "Waypoint 📍",
+            Content = "Waypoint UI Opened!",
+            Duration = 2
+        })
     end
 })
 
@@ -547,153 +560,6 @@ TabFarm:CreateToggle({
     end
 })
 
--- AUTO EGG HUNT 🐰🥚
--- Mirip Auto Geode, Smart Hover + Obstacle + Respawn Safe
-
-local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-
-local player = Players.LocalPlayer
-local hrp = nil
-local autoEgg = false
-local visited = {}
-
-local FLY_HEIGHT = 100
-local DROP_HEIGHT = 1
-local SPEED = 100
-local UP_SPEED = 120
-local DOWN_SPEED = 120
-
--- refresh HRP
-local function refreshHRP()
-    local char = player.Character or player.CharacterAdded:Wait()
-    hrp = char:WaitForChild("HumanoidRootPart")
-end
-refreshHRP()
-player.CharacterAdded:Connect(refreshHRP)
-
--- tween helper
-local function tweenToPosition(targetPos, customSpeed)
-    local distance = (hrp.Position - targetPos).Magnitude
-    local time = distance / (customSpeed or SPEED)
-
-    local lookVector = hrp.CFrame.LookVector
-    local targetCFrame = CFrame.new(targetPos, targetPos + lookVector)
-
-    local tween = TweenService:Create(
-        hrp,
-        TweenInfo.new(time, Enum.EasingStyle.Linear),
-        {CFrame = targetCFrame}
-    )
-
-    tween:Play()
-    tween.Completed:Wait()
-end
-
--- collect egg
-local function collectEgg(part)
-    if part and part:FindFirstChildOfClass("TouchTransmitter") then
-        firetouchinterest(hrp, part, 0)
-        firetouchinterest(hrp, part, 1)
-        task.wait(0.35)
-    end
-end
-
--- naik ke atas (untuk toggle ON)
-local function goUp()
-    local currentPos = hrp.Position
-    local targetPos = Vector3.new(currentPos.X, currentPos.Y + FLY_HEIGHT, currentPos.Z)
-    tweenToPosition(targetPos, UP_SPEED)
-end
-
--- cek obstacle pakai raycast
-local function isPathBlocked(targetPos)
-    local rayParams = RaycastParams.new()
-    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-    rayParams.FilterDescendantsInstances = {player.Character}
-    local direction = targetPos - hrp.Position
-    local result = Workspace:Raycast(hrp.Position, direction, rayParams)
-    return result ~= nil
-end
-
--- cari egg terdekat (dynamic)
-local function getNearestEgg()
-    local closestPart = nil
-    local closestModel = nil
-    local shortest = math.huge
-
-    if not Workspace:FindFirstChild("Geode") then return nil,nil end
-    local geodeFolder = Workspace.Geode
-
-    for _, eggModel in ipairs(geodeFolder:GetChildren()) do
-        if eggModel.Name == "EasterEgg" then
-            local part = eggModel:FindFirstChild("Traditional Painted Egg")
-            if part and part:FindFirstChildOfClass("TouchTransmitter") then
-                local dist = (hrp.Position - part.Position).Magnitude
-                if dist < shortest then
-                    shortest = dist
-                    closestPart = part
-                    closestModel = eggModel
-                end
-            end
-        end
-    end
-
-    return closestModel, closestPart
-end
-
--- loop utama
-task.spawn(function()
-    while true do
-        if autoEgg and hrp then
-            local model, part = getNearestEgg()
-            if model and part then
-                local basePos = part.Position
-
-                -- path obstacle check
-                local blocked = isPathBlocked(basePos)
-
-                -- langsung ke egg tanpa limit jarak
-                if not blocked then
-                    tweenToPosition(basePos + Vector3.new(0, DROP_HEIGHT, 0), SPEED)
-                else
-                    local hoverPos = Vector3.new(hrp.Position.X, basePos.Y + FLY_HEIGHT, hrp.Position.Z)
-                    tweenToPosition(hoverPos, UP_SPEED)
-                    tweenToPosition(basePos + Vector3.new(0, FLY_HEIGHT, 0))
-                    tweenToPosition(basePos + Vector3.new(0, DROP_HEIGHT, 0), DOWN_SPEED)
-                end
-
-                task.wait(0.1)
-                collectEgg(part)
-
-                -- tandai sudah dikunjungi
-                visited[model] = tick()
-            else
-                task.wait(1)
-            end
-        end
-        task.wait(0.1)
-    end
-end)
-
--- toggle UI
-TabFarm:CreateSection("Egg Hunt 🐰🥚")
-TabFarm:CreateToggle({
-    Name = "Auto Egg Hunt 🐰🥚",
-    CurrentValue = false,
-    Callback = function(v)
-        autoEgg = v
-        if v and hrp then
-            goUp()
-        end
-        if not v then
-            visited = {}
-        end
-    end
-})
-
 -- === Fix HRP After Reset/Death ===
 local player = game.Players.LocalPlayer
  
@@ -762,269 +628,138 @@ TabQuest:CreateButton({
     end
 })
 
--- TAB Automation 🔄
-local TabSystem = Window:CreateTab("Automation 🔄")
+-- ===== SECTION: AUTO EXCAVATION ⛏️🔥 =====
 
--- ===== Services =====
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
-local Backpack = LocalPlayer:WaitForChild("BackpackTwo")
+local ExcavationFolder = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Excavation")
 
--- ===== Remotes =====
-local ToggleLockRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Inventory"):WaitForChild("ToggleLock")
-local SellItemRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellItem")
+local StartRemote = ExcavationFolder:WaitForChild("StartExcavation")
+local ClaimRemote = ExcavationFolder:WaitForChild("ClaimExcavation")
 
--- ===== Rarity list =====
-local rarities = {
-    {Name = "Common",    Emoji = "⚪"},
-    {Name = "Uncommon",  Emoji = "🟢"},
-    {Name = "Rare",      Emoji = "🔵"},
-    {Name = "Epic",      Emoji = "🟣"},
-    {Name = "Legendary", Emoji = "🟡"},
-    {Name = "Mythic",    Emoji = "🔴"},
-    {Name = "Exotic",    Emoji = "💎"},
-}
+local selectedArea = nil
+local lockedArea = nil
+local autoExcavation = false
+local hasStarted = false
 
--- ===== STATE =====
-local autoSellState = {}
-local autoLockState = {}
-local autoSellEnabled = false
-local autoLockEnabled = false
+TabQuest:CreateSection("Excavation ⛏️🔥")
 
-for _, r in ipairs(rarities) do
-    autoSellState[r.Name] = false
-    autoLockState[r.Name] = false
-end
+-- DROPDOWN
+TabQuest:CreateDropdown({
+    Name = "Select Area 🗺️",
+    Options = {
+        "Magma Temple",
+        "Frozen Fortress",
+        "Lost City",
+        "Mysterious Meteor",
+        "Volcanic Ruins"
+    },
+    CurrentOption = {},
+    MultipleOptions = false,
+    Callback = function(option)
+        selectedArea = option[1]
+    end
+})
 
--- ===== AUTO SELL SYSTEM =====
-local q = {head=1, tail=0, data={}}
-local queued = setmetatable({}, {__mode="k"})
+-- BUTTON (MANUAL START ONLY)
+TabQuest:CreateButton({
+    Name = "Start Excavation ⛏️",
+    Callback = function()
 
-local function q_push(tool)
-    if queued[tool] then return end
-    q.tail += 1
-    q.data[q.tail] = tool
-    queued[tool] = true
-end
+        if not selectedArea then
+            Rayfield:Notify({
+                Title = "Excavation ⛏️",
+                Content = "Pilih area dulu ❌",
+                Duration = 2
+            })
+            return
+        end
 
-local function q_pop()
-    if q.head > q.tail then return nil end
-    local tool = q.data[q.head]
-    q.data[q.head] = nil
-    q.head += 1
-    queued[tool] = nil
-    return tool
-end
-
-local SAFE_DELAY_ITEM_MIN, SAFE_DELAY_ITEM_MAX = 0.05, 0.3
-local SAFE_DELAY_SWEEP_MIN, SAFE_DELAY_SWEEP_MAX = 0.05, 0.2
-local WORKERS = 10
-local MAX_PER_SWEEP = 15
-
-local function randDelayItem()
-    task.wait(math.random(SAFE_DELAY_ITEM_MIN*1000, SAFE_DELAY_ITEM_MAX*1000)/1000)
-end
-local function randDelaySweep()
-    task.wait(math.random(SAFE_DELAY_SWEEP_MIN*1000, SAFE_DELAY_SWEEP_MAX*1000)/1000)
-end
-
-local function isSellable(tool)
-    if not autoSellEnabled then return false end
-    if not tool or not tool.Parent then return false end
-    if tool.Parent ~= Backpack then return false end
-    if not tool:IsA("Tool") then return false end
-    if tool:GetAttribute("Locked") == true then return false end
-    if tool:GetAttribute("Equipped") == true or tool.Parent == LocalPlayer.Character then return false end
-    local rarity = tool:GetAttribute("Rarity")
-    if not rarity or autoSellState[rarity] ~= true then return false end
-    return true
-end
-
-local function safeInvokeSell(tool)
-    if not isSellable(tool) then return false end
-    local ok, res = pcall(function()
-        return SellItemRemote:InvokeServer(tool)
-    end)
-    if not ok then
-        randDelayItem()
-        ok, res = pcall(function()
-            return SellItemRemote:InvokeServer(tool)
+        local ok = pcall(function()
+            StartRemote:InvokeServer(selectedArea)
         end)
-    end
-    return ok and (res == true or res == "Success")
-end
 
-Backpack.ChildAdded:Connect(function(tool)
-    if not tool or not tool:IsA("Tool") then return end
-    task.delay(math.random(0,30)/100, function()
-        local rarity = tool:GetAttribute("Rarity")
-        if autoSellEnabled and rarity and autoSellState[rarity] then
-            q_push(tool)
+        if not ok then
+            Rayfield:Notify({
+                Title = "Excavation",
+                Content = "Excavation Gagal ❌",
+                Duration = 2
+            })
+            return
         end
-    end)
-end)
 
-task.spawn(function()
-    while true do
-        task.wait(math.random(25,60)/100)
-        if not autoSellEnabled then continue end
-        for _, tool in ipairs(Backpack:GetChildren()) do
-            if tool:IsA("Tool") then
-                local rarity = tool:GetAttribute("Rarity")
-                if rarity and autoSellState[rarity] and not queued[tool] then
-                    q_push(tool)
+        Rayfield:Notify({
+            Title = "Excavation ⛏️",
+            Content = "Manual Start ✅",
+            Duration = 2
+        })
+    end
+})
+
+-- TOGGLE (LOCK + CLAIM LOOP)
+TabQuest:CreateToggle({
+    Name = "Auto Excavation ⛏️🗺️",
+    CurrentValue = false,
+    Callback = function(v)
+        autoExcavation = v
+
+        if v then
+
+            if not selectedArea then
+                Rayfield:Notify({
+                    Title = "Excavation ⛏️",
+                    Content = "Pilih area dulu ❌",
+                    Duration = 2
+                })
+                autoExcavation = false
+                return
+            end
+
+            lockedArea = selectedArea
+
+            local ok = pcall(function()
+                StartRemote:InvokeServer(lockedArea)
+            end)
+
+            if not ok then
+                Rayfield:Notify({
+                    Title = "Excavation ⛏️",
+                    Content = "Excavation Gagal ❌",
+                    Duration = 2
+                })
+                autoExcavation = false
+                return
+            end
+
+            hasStarted = true
+
+            Rayfield:Notify({
+                Title = "Excavation ⛏️",
+                Content = "Lock Area 🔒: " .. lockedArea,
+                Duration = 2
+            })
+
+            task.spawn(function()
+
+                while autoExcavation do
+                    task.wait(5)
+
+                    pcall(function()
+                        ClaimRemote:InvokeServer(lockedArea)
+                    end)
                 end
-            end
-        end
-    end
-end)
+            end)
 
-for i = 1, WORKERS do
-    task.spawn(function()
-        while true do
-            if autoSellEnabled then
-                local queueLength = q.tail - q.head + 1
-                local takeN = math.min(MAX_PER_SWEEP, queueLength)
-                for _ = 1, takeN do
-                    local tool = q_pop()
-                    if not tool then break end
-                    if isSellable(tool) then
-                        safeInvokeSell(tool)
-                        randDelayItem()
-                    end
-                end
-                randDelaySweep()
-            else
-                task.wait(0.2)
-            end
-        end
-    end)
-end
-
--- ===== AUTO LOCK SYSTEM =====
-local function rand_delay()
-    task.wait(math.random(20, 35) / 100)
-end
-
-local lockQueue = {}
-local function queueLock(item)
-    if not autoLockEnabled then return end
-    if not item or not item:IsA("Tool") then return end
-    if item.Parent ~= Backpack then return end
-    local rarity = item:GetAttribute("Rarity")
-    local isLocked = item:GetAttribute("Locked")
-    if rarity and autoLockState[rarity] and (isLocked == false or isLocked == nil) then
-        table.insert(lockQueue, item)
-    end
-end
-
-local MAX_WORKERS = 3
-local function worker()
-    while true do
-        if autoLockEnabled then
-            local item = table.remove(lockQueue, 1)
-            if item and item:IsDescendantOf(Backpack) then
-                pcall(function()
-                    ToggleLockRemote:FireServer(item)
-                end)
-                rand_delay()
-            else
-                task.wait(0.1)
-            end
         else
-            task.wait(0.2)
+            autoExcavation = false
+            lockedArea = nil
+            hasStarted = false
+
+            Rayfield:Notify({
+                Title = "Excavation",
+                Content = "Stopped ❌",
+                Duration = 2
+            })
         end
-    end
-end
-for i = 1, MAX_WORKERS do
-    task.spawn(worker)
-end
-
-Backpack.ChildAdded:Connect(function(tool)
-    task.wait(0.1)
-    queueLock(tool)
-    tool.AttributeChanged:Connect(function(attr)
-        if attr == "Locked" and tool:GetAttribute("Locked") == false then
-            queueLock(tool)
-        end
-    end)
-end)
-
-task.spawn(function()
-    while true do
-        if autoLockEnabled then
-            for _, tool in ipairs(Backpack:GetChildren()) do
-                queueLock(tool)
-            end
-        end
-        task.wait(5)
-    end
-end)
-
--- ===== UI SECTIONS =====
-TabSystem:CreateSection("Auto Lock 🔒")
-
-local LockDropdown = TabSystem:CreateDropdown({
-    Name = "Select Lock Items",
-    Options = {
-        "⚪ Common",
-        "🟢 Uncommon",
-        "🔵 Rare",
-        "🟣 Epic",
-        "🟡 Legendary",
-        "🔴 Mythic",
-        "💎 Exotic"
-    },
-    CurrentOption = {},
-    MultipleOptions = true,
-    Callback = function(Options)
-        for _, r in ipairs(rarities) do
-            autoLockState[r.Name] = table.find(Options, r.Emoji .. " " .. r.Name) ~= nil
-        end
-        if autoLockEnabled then
-            for _, tool in ipairs(Backpack:GetChildren()) do
-                queueLock(tool)
-            end
-        end
-    end
-})
-
-TabSystem:CreateToggle({
-    Name = "Auto Lock",
-    CurrentValue = false,
-    Callback = function(Value)
-        autoLockEnabled = Value
-    end
-})
-
-TabSystem:CreateSection("Auto Sell 💰")
-
-local SellDropdown = TabSystem:CreateDropdown({
-    Name = "Select Sell Items",
-    Options = {
-        "⚪ Common",
-        "🟢 Uncommon",
-        "🔵 Rare",
-        "🟣 Epic",
-        "🟡 Legendary",
-        "🔴 Mythic",
-        "💎 Exotic"
-    },
-    CurrentOption = {},
-    MultipleOptions = true,
-    Callback = function(Options)
-        for _, r in ipairs(rarities) do
-            autoSellState[r.Name] = table.find(Options, r.Emoji .. " " .. r.Name) ~= nil
-        end
-    end
-})
-
-TabSystem:CreateToggle({
-    Name = "Auto Sell",
-    CurrentValue = false,
-    Callback = function(Value)
-        autoSellEnabled = Value
     end
 })
 
@@ -1578,7 +1313,7 @@ local function createPingUI()
                 ping, fps
             )
             
-            task.wait(1.5) -- jangan spam
+            task.wait(3) -- jangan spam
         end
     end)
 end
