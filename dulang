@@ -99,7 +99,7 @@ local savedSandCF, savedWaterCF = nil, nil
 local autoFarm = false
 local currentTween = nil
 
-local MOVE_SPEED = 70
+local MOVE_SPEED = 50
 
 local function randDelay(min, max)
     task.wait(math.random()*(max-min)+min)
@@ -114,7 +114,7 @@ local function rotateTo(targetPos)
 
     local rotTween = TweenService:Create(
         hrp,
-        TweenInfo.new(0.2, Enum.EasingStyle.Linear),
+        TweenInfo.new(0.5, Enum.EasingStyle.Linear),
         {CFrame = lookCF}
     )
 
@@ -235,7 +235,7 @@ local function digUntilFull()
 end
 
 local function ensurePanStarted()
-    for _=1,10 do
+    for _=1,6 do
         if panIsActive() then return true end
         local _, panRemote = getRemotes(getTool())
         if panRemote then callRemote(panRemote) end
@@ -255,7 +255,7 @@ local function startShakeThread()
 
             if tick() - start > 10 then break end
 
-            randDelay(0.04,0.08)
+            randDelay(0.1,0.15)
         end
     end)
 end
@@ -628,7 +628,7 @@ TabQuest:CreateButton({
     end
 })
 
--- ===== SECTION: AUTO EXCAVATION ⛏️🔥 =====
+-- ===== AUTO EXCAVATION FINAL (REAL DETECT) ⛏️🔥 =====
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ExcavationFolder = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Excavation")
@@ -639,7 +639,8 @@ local ClaimRemote = ExcavationFolder:WaitForChild("ClaimExcavation")
 local selectedArea = nil
 local lockedArea = nil
 local autoExcavation = false
-local hasStarted = false
+
+local loopId = 0
 
 TabQuest:CreateSection("Excavation ⛏️🔥")
 
@@ -656,15 +657,14 @@ TabQuest:CreateDropdown({
     CurrentOption = {},
     MultipleOptions = false,
     Callback = function(option)
-        selectedArea = option[1]
+        selectedArea = typeof(option) == "table" and option[1] or option
     end
 })
 
--- BUTTON (MANUAL START ONLY)
+-- BUTTON
 TabQuest:CreateButton({
     Name = "Start Excavation ⛏️",
     Callback = function()
-
         if not selectedArea then
             Rayfield:Notify({
                 Title = "Excavation ⛏️",
@@ -674,36 +674,20 @@ TabQuest:CreateButton({
             return
         end
 
-        local ok = pcall(function()
+        pcall(function()
             StartRemote:InvokeServer(selectedArea)
         end)
-
-        if not ok then
-            Rayfield:Notify({
-                Title = "Excavation",
-                Content = "Excavation Gagal ❌",
-                Duration = 2
-            })
-            return
-        end
-
-        Rayfield:Notify({
-            Title = "Excavation ⛏️",
-            Content = "Manual Start ✅",
-            Duration = 2
-        })
     end
 })
 
--- TOGGLE (LOCK + CLAIM LOOP)
+-- TOGGLE
 TabQuest:CreateToggle({
-    Name = "Auto Excavation ⛏️🗺️",
+    Name = "Auto Excavation (Smart) 🔥",
     CurrentValue = false,
     Callback = function(v)
         autoExcavation = v
 
         if v then
-
             if not selectedArea then
                 Rayfield:Notify({
                     Title = "Excavation ⛏️",
@@ -716,43 +700,54 @@ TabQuest:CreateToggle({
 
             lockedArea = selectedArea
 
-            local ok = pcall(function()
-                StartRemote:InvokeServer(lockedArea)
-            end)
-
-            if not ok then
-                Rayfield:Notify({
-                    Title = "Excavation ⛏️",
-                    Content = "Excavation Gagal ❌",
-                    Duration = 2
-                })
-                autoExcavation = false
-                return
-            end
-
-            hasStarted = true
-
-            Rayfield:Notify({
-                Title = "Excavation ⛏️",
-                Content = "Lock Area 🔒: " .. lockedArea,
-                Duration = 2
-            })
+            loopId += 1
+            local currentId = loopId
 
             task.spawn(function()
+                task.wait(3) -- relog safe
 
-                while autoExcavation do
-                    task.wait(5)
+                while currentId == loopId and autoExcavation do
 
+                    -- 🔹 START (AMAN, AUTO SKIP JIKA MASIH JALAN)
                     pcall(function()
-                        ClaimRemote:InvokeServer(lockedArea)
+                        StartRemote:InvokeServer(lockedArea)
                     end)
+
+                    task.wait(1)
+
+                    -- 🔹 LOOP CLAIM SAMPAI BENERAN SELESAI
+                    while currentId == loopId and autoExcavation do
+
+                        -- CLAIM
+                        pcall(function()
+                            ClaimRemote:InvokeServer(lockedArea)
+                        end)
+
+                        task.wait(5)
+
+                        -- 🔥 DETECT: COBA START LAGI
+                        local canStart = false
+
+                        pcall(function()
+                            StartRemote:InvokeServer(lockedArea)
+                            canStart = true
+                        end)
+
+                        -- kalau bisa start → berarti claim berhasil
+                        if canStart then
+                            break
+                        end
+                    end
+
+                    -- 🔹 COOLDOWN SETELAH CLAIM BERHASIL
+                    task.wait(2)
                 end
             end)
 
         else
             autoExcavation = false
             lockedArea = nil
-            hasStarted = false
+            loopId += 1
 
             Rayfield:Notify({
                 Title = "Excavation",
