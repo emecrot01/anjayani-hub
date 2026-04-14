@@ -1108,18 +1108,12 @@ TabMisc:CreateButton({
         -- delay penting (biar server set state)
         task.wait(0.3)
 
-        -- STEP 2: Reforge (pakai tool yang sama persis)
+        -- STEP 2: Reforge
         local success, result = pcall(function()
             return RS.Remotes.Crafting.ReforgeEquipment:InvokeServer(tool)
         end)
 
-        if success and result then
-            Rayfield:Notify({
-                Title = "Success",
-                Content = "Reforge berhasil ⚡",
-                Duration = 2
-            })
-        else
+        if not (success and result) then
             Rayfield:Notify({
                 Title = "Failed",
                 Content = "State belum kebuka / validasi gagal.",
