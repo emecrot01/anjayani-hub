@@ -33,6 +33,10 @@ TabHome:CreateParagraph({
 -Dredge Master Quest 🛥️📜
 -Auto Excavation ⛏️🗺️
 
+• Auto Sell 💰 (NEW FEATURE)
+-Menambah Sistem Auto Sell Dengan Dropdown Khusus Treasure Map 🗺️
+-Tidak Menambahkan Auto Sell Ore (Minimal Jangan Miskin Boss, Beli Gamepass Auto Sell Sono)
+
 • Webhooks 🌐
 Menambahkan Fitur Baru Yaitu Webhooks (Hanya Terhubung Ke Webhooks Milik Owner Script Ini)
 
@@ -757,6 +761,173 @@ TabQuest:CreateToggle({
         end
     end
 })
+
+-- ===== TAB =====
+local TabSell = Window:CreateTab("Auto Sell 💰")
+
+-- ===== Services =====
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Backpack = LocalPlayer:WaitForChild("BackpackTwo")
+
+-- ===== Remote =====
+local SellItemRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("SellItem")
+
+-- ===== MAP LIST =====
+local mapList = {
+    "Fortune River",
+    "Fortune River Delta",
+    "Sunset Beach",
+    "Volcanic Sands",
+    "Windswept Beach",
+    "Frostbite River",
+    "Rotwood Swamp"
+}
+
+-- ===== STATE =====
+local sellList = {}
+local autoSellEnabled = false
+
+-- ===== QUEUE =====
+local q = {head=1, tail=0, data={}}
+local queued = setmetatable({}, {__mode="k"})
+
+local function clearQueue()
+    q = {head=1, tail=0, data={}}
+    queued = setmetatable({}, {__mode="k"})
+end
+
+local function q_push(tool)
+    if queued[tool] then return end
+    q.tail += 1
+    q.data[q.tail] = tool
+    queued[tool] = true
+end
+
+local function q_pop()
+    if q.head > q.tail then return nil end
+    local tool = q.data[q.head]
+    q.data[q.head] = nil
+    q.head += 1
+    queued[tool] = nil
+    return tool
+end
+
+-- ===== UI =====
+TabSell:CreateSection("Auto Sell Map 🗺️💰")
+
+TabSell:CreateDropdown({
+    Name = "Select Map 🗺️✅",
+    Options = mapList,
+    CurrentOption = {},
+    MultipleOptions = true,
+    Callback = function(Options)
+        sellList = {}
+
+        for _, map in ipairs(Options) do
+            sellList[map] = true
+        end
+
+        clearQueue()
+    end
+})
+
+TabSell:CreateToggle({
+    Name = "Selling Map 💰",
+    CurrentValue = false,
+    Callback = function(Value)
+        autoSellEnabled = Value
+
+        if not Value then
+            clearQueue()
+        end
+    end
+})
+
+-- ===== FILTER =====
+local function isSellable(tool)
+    if not autoSellEnabled then return false end
+    if not tool or not tool.Parent then return false end
+    if tool.Parent ~= Backpack then return false end
+    if not tool:IsA("Tool") then return false end
+    if tool.Name ~= "Treasure Map" then return false end
+
+    if tool:GetAttribute("Locked") == true then return false end
+    if tool:GetAttribute("Equipped") == true or tool.Parent == LocalPlayer.Character then return false end
+
+    local region = tool:GetAttribute("Region")
+    if not region then return false end
+
+    return sellList[region] == true
+end
+
+-- ===== SELL =====
+local function safeInvokeSell(tool)
+    if not isSellable(tool) then return false end
+
+    local ok, res = pcall(function()
+        return SellItemRemote:InvokeServer(tool)
+    end)
+
+    if not ok then
+        task.wait(0.5)
+        ok, res = pcall(function()
+            return SellItemRemote:InvokeServer(tool)
+        end)
+    end
+
+    return ok and (res == true or res == "Success")
+end
+
+-- ===== DETECT NEW =====
+Backpack.ChildAdded:Connect(function(tool)
+    if not tool or not tool:IsA("Tool") then return end
+
+    task.spawn(function()
+        for i = 1, 10 do
+            if tool:GetAttribute("Region") then break end
+            task.wait(0.1)
+        end
+
+        if isSellable(tool) then
+            q_push(tool)
+        end
+    end)
+end)
+
+-- ===== SCAN =====
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+
+        if not autoSellEnabled then continue end
+
+        for _, tool in ipairs(Backpack:GetChildren()) do
+            if isSellable(tool) and not queued[tool] then
+                q_push(tool)
+            end
+        end
+    end
+end)
+
+-- ===== WORKER (SLOW MODE) =====
+task.spawn(function()
+    while true do
+        if autoSellEnabled then
+            local tool = q_pop()
+
+            if tool and isSellable(tool) then
+                safeInvokeSell(tool)
+                task.wait(1.5) -- 🔥 speed (ubah kalau mau)
+            else
+                task.wait(0.2)
+            end
+        else
+            task.wait(0.2)
+        end
+    end
+end)
 
 -- ===== TAB WEBHOOKS 🌐 =====
 local WebhookTab = Window:CreateTab("Webhooks 🌐")
