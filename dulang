@@ -18,10 +18,10 @@ local Window = Rayfield:CreateWindow({
  
 -- TAB Home 🏠
 local TabHome = Window:CreateTab("Home 🏠")
-TabHome:CreateLabel("Prospecting! 💎 v1.6.2")
+TabHome:CreateLabel("Prospecting! 💎 v1.6.5")
 TabHome:CreateSection("Changelog")
 TabHome:CreateParagraph({
-    Title = "Prospecting! 💎 v1.6.2",
+    Title = "Prospecting! 💎 v1.6.5",
     Content = [[
 🎉 Fitur Yang Tersedia:
 • Auto Farm⛏️💧
