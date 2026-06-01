@@ -38,7 +38,7 @@ TabHome:CreateParagraph({
 -Tidak Menambahkan Auto Sell Ore (Minimal Jangan Miskin Boss, Beli Gamepass Auto Sell Sono)
 
 • Webhooks 🌐
-Menambahkan Fitur Baru Yaitu Webhooks (Hanya Terhubung Ke Webhooks Milik Owner Script Ini)
+Menambahkan Fitur Webhooks Agar Bisa Cek Tipe Ore Yang Di Dapatkan 
 
 • Shop 🏪
 -Auto Buy Traveling Merchant 🛒
@@ -944,10 +944,23 @@ end
 
 -- ===== STATE =====
 local WebhookEnabled = false
-local WebhookURL = "https://discord.com/api/webhooks/1435819964530561225/LTYJQFSGU0SMeGRgxMfJLZtZpPF4SLv1wyIOK-BQ5n-KfC0gliHMameVXzPLEC71Fy1U"
-local SelectedRarity = {} -- dropdown awal kosong
+local WebhookURL = "" -- 🔥 sekarang dari textbox
+local SelectedRarity = {}
 
--- ===== DATA ORE + GAMBAR (hanya untuk thumbnail) =====
+-- ===== SECTION =====
+WebhookTab:CreateSection("Ore Webhooks 💎")
+
+-- ===== TEXTBOX WEBHOOK =====
+WebhookTab:CreateInput({
+    Name = "Webhook URL 🔗",
+    PlaceholderText = "Paste Discord Webhook URL...",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(text)
+        WebhookURL = text
+    end
+})
+
+-- ===== DATA ORE + GAMBAR =====
 local OreData = {
     ["💎 Exotic"] = {
         {Name="Dinosaur Skull", Image="https://raw.githubusercontent.com/emecrot01/anjayani-hub/main/Dinosaur_Skullhd.png"},
@@ -977,12 +990,11 @@ local function GetOreData(name)
     end
 end
 
--- ===== FUNCTION CEK RARITY TERPILIH =====
+-- ===== RARITY CHECK =====
 local function IsRaritySelected(tool)
     local rarity = tool:GetAttribute("Rarity")
     if not rarity then return false end
 
-    local formatted = ""
     for _, r in ipairs({
         {Name="Common", Emoji="⚪"},
         {Name="Uncommon", Emoji="🟢"},
@@ -992,15 +1004,16 @@ local function IsRaritySelected(tool)
         {Name="Mythic", Emoji="🔴"},
         {Name="Exotic", Emoji="💎"}
     }) do
+        local formatted = r.Emoji .. " " .. r.Name
         if r.Name == rarity then
-            formatted = r.Emoji .. " " .. r.Name
-            break
+            return table.find(SelectedRarity, formatted) ~= nil
         end
     end
-    return table.find(SelectedRarity, formatted) ~= nil
+
+    return false
 end
 
--- ===== FUNCTION AMBIL DATA DARI ITEMDATA =====
+-- ===== ITEM DATA =====
 local function GetItemAttribute(tool, attr)
     local itemData = tool:FindFirstChild("ItemData")
     if itemData and itemData:GetAttribute(attr) then
@@ -1009,32 +1022,19 @@ local function GetItemAttribute(tool, attr)
     return "Unknown"
 end
 
--- ===== FUNCTION KIRIM WEBHOOK =====
+-- ===== WEBHOOK SENDER =====
 local function SendWebhook(tool)
-    if not WebhookEnabled or WebhookURL == "" or not req then return end
+    if not WebhookEnabled then return end
+    if not req then return end
+    if WebhookURL == "" then return end
     if not IsRaritySelected(tool) then return end
 
     local data = GetOreData(tool.Name)
     data = data and (data[1] or data) or {}
 
     local rarity = tool:GetAttribute("Rarity") or "Unknown"
-    local formatted = ""
-    for _, r in ipairs({
-        {Name="Common", Emoji="⚪"},
-        {Name="Uncommon", Emoji="🟢"},
-        {Name="Rare", Emoji="🔵"},
-        {Name="Epic", Emoji="🟣"},
-        {Name="Legendary", Emoji="🟡"},
-        {Name="Mythic", Emoji="🔴"},
-        {Name="Exotic", Emoji="💎"}
-    }) do
-        if r.Name == rarity then
-            formatted = r.Emoji .. " " .. r.Name
-            break
-        end
-    end
+    local formatted = rarity
 
-    -- Ambil data runtime dari ItemData
     local modifier = GetItemAttribute(tool, "Modifier")
     local price = GetItemAttribute(tool, "Price")
     local size = GetItemAttribute(tool, "Weight")
@@ -1068,7 +1068,7 @@ local function SendWebhook(tool)
     end)
 end
 
--- ===== DETEKSI ITEM MASUK =====
+-- ===== DETECTION =====
 Backpack.ChildAdded:Connect(function(tool)
     if not tool:IsA("Tool") then return end
     task.wait(0.05)
@@ -1078,6 +1078,8 @@ Backpack.ChildAdded:Connect(function(tool)
 end)
 
 -- ===== UI =====
+
+-- DROPDOWN
 WebhookTab:CreateDropdown({
     Name = "Pilih Rarity ✅",
     Options = {"⚪ Common","🟢 Uncommon","🔵 Rare","🟣 Epic","🟡 Legendary","🔴 Mythic","💎 Exotic"},
@@ -1088,6 +1090,7 @@ WebhookTab:CreateDropdown({
     end
 })
 
+-- TOGGLE
 WebhookTab:CreateToggle({
     Name = "Aktifkan Webhooks 🟢",
     CurrentValue = false,
@@ -1096,10 +1099,12 @@ WebhookTab:CreateToggle({
     end
 })
 
+-- TEST BUTTON
 WebhookTab:CreateButton({
     Name = "Test Webhooks 🔗",
     Callback = function()
         if WebhookURL == "" then return end
+
         pcall(function()
             req({
                 Url = WebhookURL,
@@ -1111,6 +1116,133 @@ WebhookTab:CreateButton({
                 })
             })
         end)
+    end
+})
+
+-- ===== SECTION: Account Detector =====
+WebhookTab:CreateSection("Player Detector 👤")
+
+local HttpService = game:GetService("HttpService")
+
+local HttpRequest =
+    (syn and syn.request)
+    or (http and http.request)
+    or http_request
+    or request
+
+local WebhookURL = ""
+local OnlineDetector = false
+
+-- WEBHOOK INPUT
+WebhookTab:CreateInput({
+    Name = "Webhook URL 🔗",
+    PlaceholderText = "Paste Discord Webhook URL",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(value)
+        WebhookURL = tostring(value or "")
+
+        Rayfield:Notify({
+            Title = "Webhook URL 🔗",
+            Content = "Webhook Saved ✅",
+            Duration = 2
+        })
+    end,
+})
+
+-- ONLINE DETECTOR
+WebhookTab:CreateToggle({
+    Name = "Online Detector 👤🟢",
+    CurrentValue = false,
+    Callback = function(state)
+
+        if state and WebhookURL == "" then
+            Rayfield:Notify({
+                Title = "Player Detector 👤",
+                Content = "Please Enter Webhook URL First ❌",
+                Duration = 3
+            })
+            return
+        end
+
+        OnlineDetector = state
+
+        if state then
+            Rayfield:Notify({
+                Title = "Player Detector 👤",
+                Content = "Online Detector Enabled 🟢",
+                Duration = 2
+            })
+
+            task.spawn(function()
+                while OnlineDetector do
+                    pcall(function()
+                        if HttpRequest then
+                            HttpRequest({
+                                Url = WebhookURL,
+                                Method = "POST",
+                                Headers = {
+                                    ["Content-Type"] = "application/json"
+                                },
+                                Body = HttpService:JSONEncode({
+                                    content = "@everyone\n\nPlayer Online 👤🟢"
+                                })
+                            })
+                        end
+                    end)
+
+                    task.wait(300) -- 5 menit
+                end
+            end)
+        else
+            Rayfield:Notify({
+                Title = "Account Detector 👤",
+                Content = "Online Detector Disabled 🔴",
+                Duration = 2
+            })
+        end
+    end
+})
+
+-- TEST WEBHOOK
+WebhookTab:CreateButton({
+    Name = "Test Webhooks 🔗✅",
+    Callback = function()
+
+        if WebhookURL == "" then
+            Rayfield:Notify({
+                Title = "Webhooks 🔗❌",
+                Content = "Please Enter Webhook URL First",
+                Duration = 3
+            })
+            return
+        end
+
+        if HttpRequest then
+            local Success = pcall(function()
+                HttpRequest({
+                    Url = WebhookURL,
+                    Method = "POST",
+                    Headers = {
+                        ["Content-Type"] = "application/json"
+                    },
+                    Body = HttpService:JSONEncode({
+                        content = "@everyone\n\nWebhooks Berhasil 🟢✅"
+                    })
+                })
+            end)
+
+            Rayfield:Notify({
+                Title = Success and "Webhooks 🔗✅" or "Webhooks 🔗❌",
+                Content = Success and "Test Message Sent" or "Failed To Send Message",
+                Duration = 2
+            })
+        else
+            Rayfield:Notify({
+                Title = "Webhooks 🔗❌",
+                Content = "HTTP Request Not Supported",
+                Duration = 3
+            })
+        end
     end
 })
 
