@@ -18,10 +18,10 @@ local Window = Rayfield:CreateWindow({
  
 -- TAB Home 🏠
 local TabHome = Window:CreateTab("Home 🏠")
-TabHome:CreateLabel("Prospecting! 💎 v1.6.5")
+TabHome:CreateLabel("Prospecting! 💎 v2")
 TabHome:CreateSection("Changelog")
 TabHome:CreateParagraph({
-    Title = "Prospecting! 💎 v1.6.5",
+    Title = "Prospecting! 💎 v2",
     Content = [[
 🎉 Fitur Yang Tersedia:
 • Auto Farm⛏️💧
@@ -33,15 +33,16 @@ TabHome:CreateParagraph({
 -Dredge Master Quest 🛥️📜
 -Auto Excavation ⛏️🗺️
 
-• Auto Sell 💰 (NEW FEATURE)
--Menambah Sistem Auto Sell Dengan Dropdown Khusus Treasure Map 🗺️
--Tidak Menambahkan Auto Sell Ore (Minimal Jangan Miskin Boss, Beli Gamepass Auto Sell Sono)
+• Auto Sell Map 🗺️
+-Menambahkan Sistem Auto Sell Dengan Dropdown Khusus Treasure Map 🗺️
 
 • Webhooks 🌐
-Menambahkan Fitur Webhooks Agar Bisa Cek Tipe Ore Yang Di Dapatkan 
+-Menambahkan Fitur Webhooks Agar Bisa Cek Tipe Ore Yang Di Dapatkan 
+-Menambahkan Fitur Untuk Cek Character Online Atau Tidak (Deteksi Per 5 Menit)
 
 • Shop 🏪
--Auto Buy Traveling Merchant 🛒
+-Auto Buy Travelling Merchant Items 🛒
+-Buy Totem Anywhere ⚜️
 
 • Misc
 -Reforge Anywhere 🔧
@@ -52,11 +53,6 @@ Menambahkan Fitur Webhooks Agar Bisa Cek Tipe Ore Yang Di Dapatkan
 
 🛠️ Fixed
 • Shake Sambil Berjalan (Saat Melakukan Shake, Karakter Akan Kembali Ke Area Penggalian Dan Melakukan Shake Disana)
-
-🚨 New Feature Added
-• Waypoints 🗺️📍
-• Auto Excavation ⛏️🗺️ (Testing)
-
     ]]
 })
 
@@ -1249,125 +1245,260 @@ WebhookTab:CreateButton({
 -- ==== TAB SHOP ====
 local TabShop = Window:CreateTab("Shop 🏪")
 
--- ✦ LABEL: Traveling Merchant
-TabShop:CreateLabel("Traveling Merchant 👳🛒")
-
 -- ✦ SERVICES
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-local ShopRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Shop"):WaitForChild("BuyItem")
+
+local ShopRemote = ReplicatedStorage
+	:WaitForChild("Remotes")
+	:WaitForChild("Shop")
+	:WaitForChild("BuyItem")
+
 
 -- ===== FUNGSI BELI ITEM =====
 local function buyItem(item)
 	if not item or not item:FindFirstChild("ShopItem") then return end
+
 	pcall(function()
 		ShopRemote:InvokeServer(item.ShopItem, 1)
 	end)
 end
 
+
 -- ===== DETEKSI JENIS HARGA =====
 local function getPriceType(item)
-	if not item:FindFirstChild("ShopItem") then return "Unknown" end
+	if not item:FindFirstChild("ShopItem") then 
+		return "Unknown" 
+	end
 
 	local shopItem = item.ShopItem
-	if shopItem:GetAttribute("ShardPrice") and shopItem:GetAttribute("ShardPrice") > 0 then
+
+	if shopItem:GetAttribute("ShardPrice") 
+	and shopItem:GetAttribute("ShardPrice") > 0 then
+		
 		return "Shard"
-	elseif shopItem:GetAttribute("Price") and shopItem:GetAttribute("Price") > 0 then
+
+	elseif shopItem:GetAttribute("Price") 
+	and shopItem:GetAttribute("Price") > 0 then
+		
 		return "Money"
-	else
-		return "Unknown"
 	end
+
+	return "Unknown"
 end
+
 
 -- ===== DATA ITEM =====
 local itemList = {
-	"Perfect Reforge Token",
-	"Void Shard",
-	"Meteor Fragment",
-	"Prismatic Enchant Book",
 	"Warp Device",
-	"Solar Token",
 	"Quake Potion",
+	"Solar Token",
+	"Blitz Potion",
 	"Instability Potion",
-	"Blitz Potion"
+	"Snow Globe",
+	"Infernal Idol",
+	"Friendship Totem",
+	"Cosmic Resonator",
+	"Mythic Summon",
+	"Prismatic Enchant Book",
+	"Infernal Enchant Book",
+	"Cosmic Enchant Book",
+	"Divine Enchant Book",
+	"Midas Enchant Book"
 }
 
--- ===== VARIABEL GLOBAL =====
+
+-- ===== VARIABLE =====
 local selectedMoneyItems = {}
 local selectedShardItems = {}
+
 local autoBuyMoney = false
 local autoBuyShards = false
 
--- ✦ SECTION: MONEY
-TabShop:CreateSection("Money 💰")
 
-local DropdownMoney = TabShop:CreateDropdown({
-	Name = "Select Items ✅",
+-- ✦ SECTION: Traveling Merchant
+TabShop:CreateSection("Traveling Merchant 👳🛒")
+
+
+-- 💰 MONEY DROPDOWN
+TabShop:CreateDropdown({
+	Name = "Select Items 💰 ✅",
 	Options = itemList,
 	CurrentOption = {},
 	MultipleOptions = true,
+
 	Callback = function(options)
 		selectedMoneyItems = options
 	end
 })
 
+
+-- 💰 MONEY TOGGLE
 TabShop:CreateToggle({
 	Name = "Buy With 💰",
 	CurrentValue = false,
 	Flag = "AutoBuyMoney",
+
 	Callback = function(v)
 		autoBuyMoney = v
 	end
 })
 
--- ✦ SECTION: SHARD
-TabShop:CreateSection("Shard 💠")
 
-local DropdownShards = TabShop:CreateDropdown({
-	Name = "Select Items ✅",
+-- 💠 SHARD DROPDOWN
+TabShop:CreateDropdown({
+	Name = "Select Items 💠✅",
 	Options = itemList,
 	CurrentOption = {},
 	MultipleOptions = true,
+
 	Callback = function(options)
 		selectedShardItems = options
 	end
 })
 
+
+-- 💠 SHARD TOGGLE
 TabShop:CreateToggle({
 	Name = "Buy With 💠",
 	CurrentValue = false,
 	Flag = "AutoBuyShards",
+
 	Callback = function(v)
 		autoBuyShards = v
 	end
 })
 
+
 -- ===== AUTO PURCHASE LOOP =====
 task.spawn(function()
+
 	while task.wait(3) do
+
 		local purchasable = Workspace:FindFirstChild("Purchasable")
-		if not purchasable then continue end
+
+		if not purchasable then 
+			continue 
+		end
+
 
 		for _, item in pairs(purchasable:GetChildren()) do
-			if item:IsA("Model") and item:FindFirstChild("ShopItem") then
+
+			if item:IsA("Model") 
+			and item:FindFirstChild("ShopItem") then
+
+
 				local name = item.Name
 				local priceType = getPriceType(item)
 
-				-- 💰 Beli via Money
-				if autoBuyMoney and priceType == "Money" and table.find(selectedMoneyItems, name) then
+
+				-- 💰 BUY MONEY
+				if autoBuyMoney 
+				and priceType == "Money"
+				and table.find(selectedMoneyItems, name) then
+
 					buyItem(item)
 					task.wait(1)
 				end
 
-				-- 💠 Beli via Shard
-				if autoBuyShards and priceType == "Shard" and table.find(selectedShardItems, name) then
+
+				-- 💠 BUY SHARD
+				if autoBuyShards 
+				and priceType == "Shard"
+				and table.find(selectedShardItems, name) then
+
 					buyItem(item)
 					task.wait(1)
 				end
+
 			end
 		end
 	end
 end)
+
+-- ✦ SECTION: Totem Shop
+TabShop:CreateSection("Totem Shop ⚜️")
+
+local selectedTotem = nil
+local totemAmount = nil
+
+-- LIST TOTEM
+TabShop:CreateDropdown({
+	Name = "List Totem 📝⚜️",
+
+	Options = {
+		"Luck Totem",
+		"Strength Totem",
+		"Luminant Totem"
+	},
+
+	CurrentOption = {},
+
+	MultipleOptions = false,
+
+	Callback = function(option)
+
+		if typeof(option) == "table" then
+			selectedTotem = option[1]
+		else
+			selectedTotem = option
+		end
+
+	end
+})
+
+-- AMOUNT
+TabShop:CreateInput({
+	Name = "Amount 🔢",
+	PlaceholderText = "",
+	RemoveTextAfterFocusLost = false,
+	Callback = function(value)
+		totemAmount = tonumber(value)
+
+	end
+})
+
+-- BUY BUTTON
+TabShop:CreateButton({
+
+	Name = "Buy Totem ⚜️💠",
+
+	Callback = function()
+
+		if not selectedTotem then
+			warn("Pilih Totem dulu")
+			return
+		end
+
+		if not totemAmount then
+			warn("Masukkan Amount")
+			return
+		end
+
+		local location
+		if selectedTotem == "Luck Totem"
+		or selectedTotem == "Strength Totem" then
+			location = "RiverTown"
+		elseif selectedTotem == "Luminant Totem" then
+			location = "Swamp"
+
+		end
+
+		local shopItem = workspace
+			:WaitForChild("Purchasable")
+			:WaitForChild(location)
+			:WaitForChild(selectedTotem)
+			:WaitForChild("ShopItem")
+		pcall(function()
+
+			game:GetService("ReplicatedStorage")
+			:WaitForChild("Remotes")
+			:WaitForChild("Shop")
+			:WaitForChild("BuyItem")
+			:InvokeServer(shopItem, totemAmount)
+		end)
+	end
+})
 
 -- 🛠️ TAB: Misc 
 local TabMisc = Window:CreateTab("Misc 🛠️")
@@ -1605,7 +1736,7 @@ local function createPingUI()
                 ping, fps
             )
             
-            task.wait(3) -- jangan spam
+            task.wait(1) -- jangan spam
         end
     end)
 end
