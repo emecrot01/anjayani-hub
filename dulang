@@ -27,7 +27,8 @@ TabHome:CreateParagraph({
 • Auto Farm⛏️💧
 -Auto Panning ⛏️💧 & Waypoint 📍🗺️
 -Auto Collect + Shake ⛏️💧 (Manual Movement 👟)
--Auto Geode (New Method)
+-Geode Radar 💎
+-Sand Dollar Radar 🐚
 
 • Take Quest 📜 (NEW FEATURE)
 -Dredge Master Quest 🛥️📜
@@ -403,184 +404,236 @@ TabFarm:CreateToggle({
     end
 })
 
--- AUTO GEODES
--- 💎 Auto Geode FINAL v9 (Smart Hover + Obstacle + Respawn Safe)
- 
-local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
- 
-local geodeFolder = Workspace:WaitForChild("Geode")
-local player = game.Players.LocalPlayer
- 
-local hrp = nil
-local autoGeode = false
-local visited = {}
- 
-local FLY_HEIGHT = 100
-local DROP_HEIGHT = 1
-local SPEED = 100
-local UP_SPEED = 100
-local DOWN_SPEED = 100
-local HOVER_THRESHOLD = 200
- 
--- refresh HRP
-local function refreshHRP()
-    local char = player.Character or player.CharacterAdded:Wait()
-    hrp = char:WaitForChild("HumanoidRootPart")
+TabFarm:CreateSection("Geode Radar 💎")
+
+local Players=game:GetService("Players")
+local Workspace=game:GetService("Workspace")
+local RunService=game:GetService("RunService")
+
+local player=Players.LocalPlayer
+local geodeRadar=false
+local MAX_DISTANCE=10000
+
+local beam,highlight,billboard,target,a0,a1
+
+local function getHRP()
+	local char=player.Character or player.CharacterAdded:Wait()
+	return char:WaitForChild("HumanoidRootPart")
 end
- 
-refreshHRP()
-player.CharacterAdded:Connect(refreshHRP)
- 
--- tween helper
-local function tweenToPosition(targetPos, customSpeed)
-    local distance = (hrp.Position - targetPos).Magnitude
-    local time = distance / (customSpeed or SPEED)
- 
-    local lookVector = hrp.CFrame.LookVector
-    local targetCFrame = CFrame.new(targetPos, targetPos + lookVector)
- 
-    local tween = TweenService:Create(
-        hrp,
-        TweenInfo.new(time, Enum.EasingStyle.Linear),
-        {CFrame = targetCFrame}
-    )
- 
-    tween:Play()
-    tween.Completed:Wait()
+
+local function clearMarker()
+	if beam then beam:Destroy() beam=nil end
+	if highlight then highlight:Destroy() highlight=nil end
+	if billboard then billboard:Destroy() billboard=nil end
+	if a0 then a0:Destroy() a0=nil end
+	if a1 then a1:Destroy() a1=nil end
+	target=nil
 end
- 
--- collect geode
-local function collectGeode(part)
-    if part and part:FindFirstChildOfClass("TouchTransmitter") then
-        firetouchinterest(hrp, part, 0)
-        firetouchinterest(hrp, part, 1)
-        task.wait(0.35)
-    end
+
+local function findNearestGeode()
+	local folder=Workspace:FindFirstChild("Geode")
+	if not folder then return nil end
+	local hrp=getHRP()
+	local closest=nil
+	local shortest=MAX_DISTANCE
+	for _,v in pairs(folder:GetDescendants()) do
+		if v:IsA("BasePart") and v:FindFirstChildOfClass("TouchTransmitter") then
+			local dist=(hrp.Position-v.Position).Magnitude
+			if dist<shortest then
+				shortest=dist
+				closest=v
+			end
+		end
+	end
+	return closest
 end
- 
--- naik ke atas (untuk toggle ON)
-local function goUp()
-    local currentPos = hrp.Position
-    local targetPos = Vector3.new(currentPos.X, currentPos.Y + FLY_HEIGHT, currentPos.Z)
-    tweenToPosition(targetPos, UP_SPEED)
+
+local function createMarker(part)
+	clearMarker()
+	target=part
+	local hrp=getHRP()
+
+	a0=Instance.new("Attachment",hrp)
+	a1=Instance.new("Attachment",part)
+
+	beam=Instance.new("Beam")
+	beam.Attachment0=a0
+	beam.Attachment1=a1
+	beam.FaceCamera=true
+	beam.Width0=0.15
+	beam.Width1=0.15
+	beam.Color=ColorSequence.new(Color3.fromRGB(255,0,0))
+	beam.Parent=hrp
+
+	highlight=Instance.new("Highlight")
+	highlight.Adornee=part
+	highlight.FillColor=Color3.fromRGB(255,0,0)
+	highlight.OutlineColor=Color3.fromRGB(255,255,255)
+	highlight.FillTransparency=0.3
+	highlight.Parent=part
+
+	billboard=Instance.new("BillboardGui")
+	billboard.Adornee=part
+	billboard.Size=UDim2.new(0,150,0,50)
+	billboard.AlwaysOnTop=true
+	billboard.Parent=part
+
+	local text=Instance.new("TextLabel")
+	text.Name="Distance"
+	text.Size=UDim2.new(1,0,1,0)
+	text.BackgroundTransparency=1
+	text.TextColor3=Color3.fromRGB(255,0,0)
+	text.TextStrokeTransparency=0
+	text.TextScaled=true
+	text.Parent=billboard
 end
- 
--- cek obstacle pakai raycast
-local function isPathBlocked(targetPos)
-    local rayParams = RaycastParams.new()
-    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-    rayParams.FilterDescendantsInstances = {player.Character}
-    local direction = targetPos - hrp.Position
-    local result = Workspace:Raycast(hrp.Position, direction, rayParams)
-    return result ~= nil
-end
- 
--- cari geode terdekat (dynamic)
-local function getNearestGeode()
-    local closestPart = nil
-    local closestModel = nil
-    local shortest = math.huge
- 
-    for _, g in ipairs(geodeFolder:GetChildren()) do
-        if g:IsA("Model") then
-            local part = g:FindFirstChild("Part")
-            if part and part:FindFirstChildOfClass("TouchTransmitter") then
-                local dist = (hrp.Position - part.Position).Magnitude
-                if dist < shortest then
-                    shortest = dist
-                    closestPart = part
-                    closestModel = g
-                end
-            end
-        end
-    end
- 
-    return closestModel, closestPart
-end
- 
--- loop utama
-task.spawn(function()
-    while true do
-        if autoGeode and hrp then
-            local model, part = getNearestGeode()
- 
-            if model and part then
-                local basePos = part.Position
- 
-                -- hitung jarak horizontal (XZ plane)
-                local hrpXZ = Vector3.new(hrp.Position.X, 0, hrp.Position.Z)
-                local baseXZ = Vector3.new(basePos.X, 0, basePos.Z)
-                local horizontalDist = (hrpXZ - baseXZ).Magnitude
- 
-                local blocked = isPathBlocked(basePos)
- 
-                if horizontalDist < HOVER_THRESHOLD and not blocked then
-                    -- dekat & jalur clear → langsung turun
-                    tweenToPosition(basePos + Vector3.new(0, DROP_HEIGHT, 0), SPEED)
-                else
-                    -- jarak jauh atau ada obstacle → hover
-                    local hoverPos = Vector3.new(hrp.Position.X, basePos.Y + FLY_HEIGHT, hrp.Position.Z)
-                    tweenToPosition(hoverPos, UP_SPEED)
- 
-                    tweenToPosition(basePos + Vector3.new(0, FLY_HEIGHT, 0))
- 
-                    tweenToPosition(basePos + Vector3.new(0, DROP_HEIGHT, 0), DOWN_SPEED)
-                end
- 
-                task.wait(0.1)
-                collectGeode(part)
- 
-                -- tandai sudah dikunjungi untuk session ini
-                visited[model] = tick()
-            else
-                task.wait(1)
-            end
-        end
-        task.wait(0.1)
-    end
+
+RunService.RenderStepped:Connect(function()
+	if not geodeRadar then return end
+
+	local hrp=getHRP()
+
+	if not target or not target.Parent then
+		clearMarker()
+		local new=findNearestGeode()
+		if new then createMarker(new) end
+		return
+	end
+
+	local distance=(hrp.Position-target.Position).Magnitude
+
+	if distance>MAX_DISTANCE then
+		clearMarker()
+		return
+	end
+
+	local text=billboard and billboard:FindFirstChild("Distance")
+	if text then
+		text.Text="💎 Geode\n"..math.floor(distance).." Stud"
+	end
 end)
- 
--- toggle
-TabFarm:CreateSection("Geodes 💎")
+
 TabFarm:CreateToggle({
-    Name = "Auto Geode 💎",
-    CurrentValue = false,
-    Callback = function(v)
-        autoGeode = v
- 
-        if v and hrp then
-            goUp()
-        end
- 
-        if not v then
-            visited = {}
-        end
-    end
+	Name="Geode Radar 💎",
+	CurrentValue=false,
+	Callback=function(v)
+		geodeRadar=v
+		if not v then
+			clearMarker()
+		end
+	end
 })
 
--- === Fix HRP After Reset/Death ===
-local player = game.Players.LocalPlayer
- 
-local function refreshHRP()
-    local char = player.Character or player.CharacterAdded:Wait()
-    local newHRP = char:WaitForChild("HumanoidRootPart", 10)
-    if newHRP then
-        hrp = newHRP
-    end
+TabFarm:CreateSection("Sand Dollar Radar 🐚")
+
+local sandRadar=false
+local sandBeam,sandHighlight,sandBillboard,sandTarget,sandA0,sandA1
+
+local function clearSandMarker()
+	if sandBeam then sandBeam:Destroy() sandBeam=nil end
+	if sandHighlight then sandHighlight:Destroy() sandHighlight=nil end
+	if sandBillboard then sandBillboard:Destroy() sandBillboard=nil end
+	if sandA0 then sandA0:Destroy() sandA0=nil end
+	if sandA1 then sandA1:Destroy() sandA1=nil end
+	sandTarget=nil
 end
- 
--- Trigger pertama saat load
-refreshHRP()
- 
--- Update HRP tiap kali karakter respawn
-player.CharacterAdded:Connect(function(char)
-    local newHRP = char:WaitForChild("HumanoidRootPart", 10)
-    if newHRP then
-        hrp = newHRP
-    end
+
+local function findNearestSandDollar()
+	local folder=Workspace:FindFirstChild("Geode") and Workspace.Geode:FindFirstChild("SandDollar")
+	if not folder then return nil end
+
+	local hrp=getHRP()
+	local closest=nil
+	local shortest=math.huge
+
+	for _,v in pairs(folder:GetDescendants()) do
+		if v:IsA("BasePart") and v:FindFirstChildOfClass("TouchTransmitter") then
+			local dist=(hrp.Position-v.Position).Magnitude
+			if dist<shortest then
+				shortest=dist
+				closest=v
+			end
+		end
+	end
+
+	return closest
+end
+
+local function createSandMarker(part)
+	clearSandMarker()
+	sandTarget=part
+
+	local hrp=getHRP()
+
+	sandA0=Instance.new("Attachment",hrp)
+	sandA1=Instance.new("Attachment",part)
+
+	sandBeam=Instance.new("Beam")
+	sandBeam.Attachment0=sandA0
+	sandBeam.Attachment1=sandA1
+	sandBeam.FaceCamera=true
+	sandBeam.Width0=0.15
+	sandBeam.Width1=0.15
+	sandBeam.Color=ColorSequence.new(Color3.fromRGB(255,215,0))
+	sandBeam.Parent=hrp
+
+	sandHighlight=Instance.new("Highlight")
+	sandHighlight.Adornee=part
+	sandHighlight.FillColor=Color3.fromRGB(255,215,0)
+	sandHighlight.OutlineColor=Color3.fromRGB(255,255,255)
+	sandHighlight.FillTransparency=0.3
+	sandHighlight.Parent=part
+
+	sandBillboard=Instance.new("BillboardGui")
+	sandBillboard.Adornee=part
+	sandBillboard.Size=UDim2.new(0,150,0,50)
+	sandBillboard.AlwaysOnTop=true
+	sandBillboard.Parent=part
+
+	local text=Instance.new("TextLabel")
+	text.Name="Distance"
+	text.Size=UDim2.new(1,0,1,0)
+	text.BackgroundTransparency=1
+	text.TextColor3=Color3.fromRGB(255,215,0)
+	text.TextStrokeTransparency=0
+	text.TextScaled=true
+	text.Parent=sandBillboard
+end
+
+RunService.RenderStepped:Connect(function()
+	if not sandRadar then return end
+
+	local hrp=getHRP()
+
+	if not sandTarget or not sandTarget.Parent then
+		clearSandMarker()
+
+		local new=findNearestSandDollar()
+		if new then
+			createSandMarker(new)
+		end
+
+		return
+	end
+
+	local distance=(hrp.Position-sandTarget.Position).Magnitude
+
+	local text=sandBillboard and sandBillboard:FindFirstChild("Distance")
+	if text then
+		text.Text="🐚 Sand Dollar\n"..math.floor(distance).." Stud"
+	end
 end)
+
+TabFarm:CreateToggle({
+	Name="Sand Dollar Radar 🐚",
+	CurrentValue=false,
+	Callback=function(v)
+		sandRadar=v
+		if not v then
+			clearSandMarker()
+		end
+	end
+})
 
 -- TAB QUEST 📜
 local TabQuest = Window:CreateTab("Take Quest 📜")
