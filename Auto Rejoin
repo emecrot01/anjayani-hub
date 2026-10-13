@@ -31,7 +31,7 @@ local STOP_CODES = {
 
 -- Error codes that trigger Auto Reconnect
 local RECONNECT_CODES = {
-    266, 277, 279
+    266, 277, 279, 528
 }
 
 -- Runtime state
