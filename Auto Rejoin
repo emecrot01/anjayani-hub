@@ -1,12 +1,5 @@
-
 --[[
-    Auto Reconnect v2
-    Public-server hopping with retry handling
-    Sottoro is NOT modified or restarted.
-
-    Requirements:
-    - Executor with game:HttpGet support
-    - Executor that permits TeleportService usage
+    Auto Reconnect By Ambatukam
 ]]
 
 repeat task.wait(1) until game:IsLoaded()
@@ -15,7 +8,6 @@ local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
-local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
@@ -29,7 +21,17 @@ local CONFIG = {
     RequestTimeout = 10,
     MaxTeleportAttempts = 8,
     MinFreeSlots = 1,
-    Notifications = true,
+}
+
+-- Error codes that stop Auto Reconnect
+local STOP_CODES = {
+    268, 256, 273, 264, 270, 278,
+    280, 403, 524, 600, 6000, 1001
+}
+
+-- Error codes that trigger Auto Reconnect
+local RECONNECT_CODES = {
+    266, 277, 279
 }
 
 -- Runtime state
@@ -41,25 +43,15 @@ local lastError = ""
 local currentTarget = nil
 local promptConnection = nil
 local teleportFailedConnection = nil
+local lastPrompt = nil
 
-local function log(...)
-    print("[AutoReconnect]", ...)
-end
+-- Only startup output.
+print("Auto Rejoin: Active")
 
-local function notify(message, duration)
-    log(message)
-
-    if not CONFIG.Notifications then
-        return
-    end
-
-    pcall(function()
-        StarterGui:SetCore("SendNotification", {
-            Title = "Auto Reconnect v2",
-            Text = tostring(message),
-            Duration = duration or 4,
-        })
-    end)
+local function stopReconnect()
+    stopped = true
+    busy = false
+    currentTarget = nil
 end
 
 local function getBackoff(attempt)
@@ -104,7 +96,6 @@ local function findPublicServer()
 
         if not data then
             lastError = err or "Server API request failed"
-            log("Server search failed:", lastError)
             return nil
         end
 
@@ -144,8 +135,6 @@ local function attemptTeleport(serverId)
     excludedServers[tostring(serverId)] = true
     currentTarget = tostring(serverId)
 
-    notify("Trying another public server...", 4)
-
     local ok, err = pcall(function()
         TeleportService:TeleportToPlaceInstance(
             PlaceId,
@@ -156,7 +145,6 @@ local function attemptTeleport(serverId)
 
     if not ok then
         lastError = tostring(err)
-        log("Teleport call failed:", lastError)
         return false
     end
 
@@ -173,8 +161,6 @@ local function requestReconnect(reason)
     teleportAttempts = 0
 
     task.spawn(function()
-        notify("Reconnect triggered: " .. tostring(reason), 5)
-
         while not stopped
             and teleportAttempts < CONFIG.MaxTeleportAttempts
         do
@@ -183,13 +169,9 @@ local function requestReconnect(reason)
             local serverId = findPublicServer()
 
             if serverId then
-                log("Server selected:", serverId)
-
                 local started = attemptTeleport(serverId)
 
                 if started then
-                    -- Wait for teleport success or failure event.
-                    -- If still in the same place, retry safely.
                     local deadline = os.clock() + 12
 
                     while not stopped
@@ -199,13 +181,11 @@ local function requestReconnect(reason)
                         task.wait(0.5)
 
                         if game.PlaceId ~= PlaceId then
-                            stopped = true
+                            stopReconnect()
                             return
                         end
                     end
                 end
-            else
-                notify("No server found; retrying...", 4)
             end
 
             if not stopped then
@@ -215,15 +195,84 @@ local function requestReconnect(reason)
         end
 
         busy = false
-
-        if not stopped then
-            notify(
-                "Retry limit reached. Waiting for another trigger.",
-                8
-            )
-            log("Last error:", lastError)
-        end
     end)
+end
+
+-- Read text exposed by Roblox UI descendants, not pixel OCR.
+local function readPromptText(prompt)
+    local parts = {}
+
+    local function collectText(object)
+        if object:IsA("TextLabel")
+            or object:IsA("TextButton")
+            or object:IsA("TextBox")
+        then
+            local value = object.Text
+
+            if type(value) == "string" and value ~= "" then
+                table.insert(parts, value)
+            end
+        end
+    end
+
+    collectText(prompt)
+
+    for _, descendant in ipairs(prompt:GetDescendants()) do
+        collectText(descendant)
+    end
+
+    return table.concat(parts, " ")
+end
+
+local function containsCode(message, code)
+    local pattern = "%f[%d]" .. tostring(code) .. "%f[^%d]"
+    return string.find(message, pattern) ~= nil
+end
+
+local function handleErrorPrompt(prompt)
+    if stopped or prompt == lastPrompt then
+        return
+    end
+
+    lastPrompt = prompt
+
+    local message = ""
+
+    -- Wait briefly for Roblox to populate the error text.
+    for _ = 1, 8 do
+        if stopped or not prompt.Parent then
+            return
+        end
+
+        message = readPromptText(prompt)
+        local normalized = string.lower(message)
+
+        -- These codes stop Auto Reconnect.
+        for _, code in ipairs(STOP_CODES) do
+            if containsCode(normalized, code) then
+                stopReconnect()
+                return
+            end
+        end
+
+        if message ~= "" then
+            break
+        end
+
+        task.wait(0.25)
+    end
+
+    if stopped then
+        return
+    end
+
+    -- These codes trigger Auto Reconnect.
+    for _, code in ipairs(RECONNECT_CODES) do
+        if containsCode(message, code) then
+            requestReconnect("Recognized connection error")
+            return
+        end
+    end
 end
 
 -- Handle teleport attempts that fail to start.
@@ -236,17 +285,13 @@ pcall(function()
                 end
 
                 lastError = tostring(errorMessage)
-                log(
-                    "TeleportInitFailed:",
-                    tostring(result),
-                    lastError
-                )
-
                 currentTarget = nil
                 busy = false
 
                 task.delay(1, function()
-                    requestReconnect("Teleport failed")
+                    if not stopped then
+                        requestReconnect("Teleport failed")
+                    end
                 end)
             end
         )
@@ -259,8 +304,7 @@ task.spawn(function()
         30
     )
 
-    if not promptGui then
-        log("RobloxPromptGui not found")
+    if not promptGui or stopped then
         return
     end
 
@@ -270,14 +314,20 @@ task.spawn(function()
         overlay = promptGui:WaitForChild("promptOverlay", 15)
     end
 
-    if not overlay then
-        log("Prompt overlay not found")
+    if not overlay or stopped then
         return
+    end
+
+    -- Inspect any error prompt that already exists.
+    for _, child in ipairs(overlay:GetChildren()) do
+        if child.Name == "ErrorPrompt" then
+            task.spawn(handleErrorPrompt, child)
+        end
     end
 
     promptConnection = overlay.ChildAdded:Connect(function(child)
         if child.Name == "ErrorPrompt" then
-            requestReconnect("Roblox error prompt")
+            task.spawn(handleErrorPrompt, child)
         end
     end)
 end)
@@ -285,17 +335,19 @@ end)
 -- Watch for teleport state failures.
 pcall(function()
     LocalPlayer.OnTeleport:Connect(function(state)
+        if stopped then
+            return
+        end
+
         if tostring(state) == "Enum.TeleportState.Failed" then
             currentTarget = nil
             busy = false
 
             task.delay(1, function()
-                requestReconnect("Teleport state failed")
+                if not stopped then
+                    requestReconnect("Teleport state failed")
+                end
             end)
         end
     end)
 end)
-
-notify("Auto Reconnect v2 is running", 5)
-log("PlaceId:", PlaceId)
-log("Current JobId:", game.JobId)
