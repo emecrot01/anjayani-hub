@@ -1,263 +1,42 @@
 --[[
     Auto Reconnect By Ambatukam
-    Retry + Teleport Update v2
+    Force Reconnect v3
+    Delta Mobile
 ]]
 
 repeat task.wait(1) until game:IsLoaded()
 
-local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
 
-local LocalPlayer = Players.LocalPlayer
-local PlaceId = game.PlaceId
-
--- Configuration
 local CONFIG = {
-    ScanDelay = 4,
-    RetryDelay = 5,
-    MaxRetryDelay = 30,
-    MaxPages = 5,
-    RequestTimeout = 10,
-    MaxTeleportAttempts = 16,
-    MinFreeSlots = 1,
-    TeleportTimeout = 20,
+    ScanInterval = 0.1,
+    RetryInterval = 0.1,
+    PromptWaitTimeout = 10,
 }
 
--- Error codes that stop Auto Reconnect
-local STOP_CODES = {
-    268, 256, 273, 264, 270, 278,
-    280, 403, 524, 600, 6000, 1001
-}
-
--- Error codes that trigger Auto Reconnect
 local RECONNECT_CODES = {
-    266, 277, 279, 528, 769
+    266,
+    268,
+    277,
+    279,
+    528,
+    769,
 }
 
--- Runtime state
-local excludedServers = {}
-local busy = false
-local stopped = false
-local lastPrompt = nil
-local lastError = ""
-local currentTarget = nil
-local reconnectRequested = false
+local running = true
+local activePrompts = {}
 
-local promptConnection = nil
-local teleportFailedConnection = nil
-local teleportStateConnection = nil
+print("Auto Reconnect By Ambatukam: Active")
 
-print("Auto Rejoin: Active")
-
-local function stopReconnect()
-    stopped = true
-    reconnectRequested = false
-    currentTarget = nil
-end
-
-local function requestJson(url)
-    local ok, result = pcall(function()
-        local response = game:HttpGet(url)
-        return HttpService:JSONDecode(response)
-    end)
-
-    if not ok or type(result) ~= "table" then
-        lastError = tostring(result)
-        return nil
-    end
-
-    return result
-end
-
--- Find a random eligible public server.
--- Previously attempted servers are excluded.
-local function findPublicServer()
-    local cursor = nil
-    local candidates = {}
-
-    for page = 1, CONFIG.MaxPages do
-        if stopped then
-            return nil
-        end
-
-        local url =
-            "https://games.roblox.com/v1/games/"
-            .. tostring(PlaceId)
-            .. "/servers/Public?sortOrder=Asc&limit=100"
-
-        if cursor and cursor ~= "" then
-            url = url .. "&cursor="
-                .. HttpService:UrlEncode(cursor)
-        end
-
-        local data = requestJson(url)
-
-        if not data then
-            return nil
-        end
-
-        if type(data.data) == "table" then
-            for _, server in ipairs(data.data) do
-                local id = server.id
-                local playing = tonumber(server.playing) or 0
-                local maximum = tonumber(server.maxPlayers) or 0
-
-                if id
-                    and tostring(id) ~= tostring(game.JobId)
-                    and not excludedServers[tostring(id)]
-                    and maximum > 0
-                    and maximum - playing >= CONFIG.MinFreeSlots
-                then
-                    table.insert(candidates, tostring(id))
-                end
-            end
-        end
-
-        cursor = data.nextPageCursor
-
-        if not cursor or cursor == "" then
-            break
-        end
-
-        task.wait(0.25)
-    end
-
-    if #candidates == 0 then
-        return nil
-    end
-
-    -- Shuffle candidates so selection is not always
-    -- biased toward the first server in the API response.
-    for i = #candidates, 2, -1 do
-        local j = math.random(1, i)
-        candidates[i], candidates[j] =
-            candidates[j], candidates[i]
-    end
-
-    return candidates[1]
-end
-
-local function attemptTeleport(serverId)
-    if stopped or not serverId then
-        return false
-    end
-
-    serverId = tostring(serverId)
-
-    -- Exclude immediately, even if teleport fails to start.
-    excludedServers[serverId] = true
-    currentTarget = serverId
-
-    local ok, err = pcall(function()
-        TeleportService:TeleportToPlaceInstance(
-            PlaceId,
-            serverId,
-            LocalPlayer
-        )
-    end)
-
-    if not ok then
-        lastError = tostring(err)
-
-        if currentTarget == serverId then
-            currentTarget = nil
-        end
-
-        return false
-    end
-
-    return true
-end
-
--- Only one reconnect worker can run at a time.
-local function requestReconnect(reason)
-    if stopped then
-        return
-    end
-
-    reconnectRequested = true
-
-    if busy then
-        return
-    end
-
-    busy = true
-
-    task.spawn(function()
-        local attempts = 0
-
-        while not stopped
-            and reconnectRequested
-            and attempts < CONFIG.MaxTeleportAttempts
-        do
-            reconnectRequested = false
-            attempts += 1
-
-            local serverId = findPublicServer()
-
-            if stopped then
-                break
-            end
-
-            if serverId then
-                local started = attemptTeleport(serverId)
-
-                if started then
-                    local deadline =
-                        os.clock() + CONFIG.TeleportTimeout
-
-                    while not stopped
-                        and currentTarget == serverId
-                        and os.clock() < deadline
-                    do
-                        task.wait(0.25)
-
-                        if game.PlaceId ~= PlaceId then
-                            stopReconnect()
-                            break
-                        end
-                    end
-
-                    if stopped then
-                        break
-                    end
-
-                    -- If target is still active, it timed out.
-                    -- The next loop will choose another server.
-                    if currentTarget == serverId then
-                        currentTarget = nil
-                    end
-                end
-            end
-
-            if stopped then
-                break
-            end
-
-            -- Retry immediately with a different server.
-            -- No backoff between failed teleport attempts.
-            if attempts < CONFIG.MaxTeleportAttempts then
-                reconnectRequested = true
-            end
-        end
-
-        currentTarget = nil
-        busy = false
-    end)
-end
-
--- Read text exposed by Roblox UI descendants.
 local function readPromptText(prompt)
     local parts = {}
 
-    local function collectText(object)
-        if object:IsA("TextLabel")
-            or object:IsA("TextButton")
-            or object:IsA("TextBox")
+    local function collectText(obj)
+        if obj:IsA("TextLabel")
+            or obj:IsA("TextButton")
+            or obj:IsA("TextBox")
         then
-            local value = object.Text
+            local value = obj.Text
 
             if type(value) == "string" and value ~= "" then
                 table.insert(parts, value)
@@ -267,8 +46,8 @@ local function readPromptText(prompt)
 
     collectText(prompt)
 
-    for _, descendant in ipairs(prompt:GetDescendants()) do
-        collectText(descendant)
+    for _, obj in ipairs(prompt:GetDescendants()) do
+        collectText(obj)
     end
 
     return table.concat(parts, " ")
@@ -279,116 +58,154 @@ local function containsCode(message, code)
     return string.find(message, pattern) ~= nil
 end
 
-local function handleErrorPrompt(prompt)
-    if stopped or prompt == lastPrompt then
-        return
-    end
+local function shouldReconnect(message)
+    local normalized = string.lower(message)
 
-    lastPrompt = prompt
-
-    local message = ""
-
-    for _ = 1, 8 do
-        if stopped or not prompt.Parent then
-            return
-        end
-
-        message = readPromptText(prompt)
-        local normalized = string.lower(message)
-
-        for _, code in ipairs(STOP_CODES) do
-            if containsCode(normalized, code) then
-                stopReconnect()
-                return
-            end
-        end
-
-        if message ~= "" then
-            break
-        end
-
-        task.wait(0.25)
-    end
-
-    if stopped then
-        return
+    if string.find(normalized, "disconnected", 1, true) then
+        return true
     end
 
     for _, code in ipairs(RECONNECT_CODES) do
-        if containsCode(message, code) then
-            requestReconnect("Recognized connection error")
-            return
+        if containsCode(normalized, code) then
+            return true
         end
     end
+
+    return false
 end
 
--- Teleport initialization failure.
-pcall(function()
-    teleportFailedConnection =
-        TeleportService.TeleportInitFailed:Connect(
-            function(player, result, errorMessage)
-                if player ~= LocalPlayer or stopped then
-                    return
-                end
+local function findReconnectButton(prompt)
+    for _, obj in ipairs(prompt:GetDescendants()) do
+        if obj:IsA("TextButton") then
+            local text = string.lower(
+                (obj.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+            )
 
-                lastError = tostring(errorMessage)
-
-                if currentTarget then
-                    currentTarget = nil
-                    requestReconnect("Teleport initialization failed")
-                end
+            if text == "reconnect" or text == "rejoin" then
+                return obj
             end
-        )
-end)
+        end
+    end
 
--- Watch Roblox error prompts.
+    return nil
+end
+
+local function clickReconnect(button)
+    -- Executor compatibility varies.
+    -- Try the available signal function if supported.
+    if type(firesignal) == "function" then
+        local ok = pcall(function()
+            firesignal(button.Activated)
+        end)
+
+        if ok then
+            return true
+        end
+
+        ok = pcall(function()
+            firesignal(button.MouseButton1Click)
+        end)
+
+        if ok then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function forceReconnect(prompt)
+    if activePrompts[prompt] then
+        return
+    end
+
+    activePrompts[prompt] = true
+
+    task.spawn(function()
+        local started = os.clock()
+
+        while running
+            and prompt.Parent
+            and os.clock() - started < CONFIG.PromptWaitTimeout
+        do
+            local message = readPromptText(prompt)
+
+            if not shouldReconnect(message) then
+                task.wait(CONFIG.ScanInterval)
+                continue
+            end
+
+            local button = findReconnectButton(prompt)
+
+            if button and button.Visible and button.Active then
+                if clickReconnect(button) then
+                    print("Auto Reconnect: Reconnect clicked")
+
+                    -- Allow Roblox to begin reconnecting.
+                    task.wait(1)
+                else
+                    warn(
+                        "Auto Reconnect: Executor could not trigger button"
+                    )
+                    task.wait(CONFIG.RetryInterval)
+                end
+            else
+                task.wait(CONFIG.RetryInterval)
+            end
+        end
+
+        activePrompts[prompt] = nil
+    end)
+end
+
 task.spawn(function()
     local promptGui = CoreGui:WaitForChild(
         "RobloxPromptGui",
         30
     )
 
-    if not promptGui or stopped then
+    if not promptGui or not running then
         return
     end
 
-    local overlay = promptGui:FindFirstChild("promptOverlay")
+    local overlay = promptGui:WaitForChild(
+        "promptOverlay",
+        15
+    )
 
-    if not overlay then
-        overlay = promptGui:WaitForChild("promptOverlay", 15)
+    if not overlay or not running then
+        return
     end
 
-    if not overlay or stopped then
-        return
+    local function inspectPrompt(child)
+        if child.Name == "ErrorPrompt" then
+            task.spawn(function()
+                for _ = 1, 10 do
+                    if not running or not child.Parent then
+                        return
+                    end
+
+                    local message = readPromptText(child)
+
+                    if message ~= "" then
+                        if shouldReconnect(message) then
+                            forceReconnect(child)
+                        end
+
+                        return
+                    end
+
+                    task.wait(CONFIG.ScanInterval)
+                end
+            end)
+        end
     end
 
     for _, child in ipairs(overlay:GetChildren()) do
-        if child.Name == "ErrorPrompt" then
-            task.spawn(handleErrorPrompt, child)
-        end
+        inspectPrompt(child)
     end
 
-    promptConnection = overlay.ChildAdded:Connect(function(child)
-        if child.Name == "ErrorPrompt" then
-            task.spawn(handleErrorPrompt, child)
-        end
-    end)
+    overlay.ChildAdded:Connect(inspectPrompt)
 end)
 
--- Handle failed teleport state.
-pcall(function()
-    teleportStateConnection = LocalPlayer.OnTeleport:Connect(
-        function(state)
-            if stopped then
-                return
-            end
-
-            if tostring(state) == "Enum.TeleportState.Failed"
-                and currentTarget
-            then
-                currentTarget = nil
-                requestReconnect("Teleport state failed")
-            end
-        end
-    )
-end)
+print("Auto Reconnect: Monitoring Disconnected prompts")
