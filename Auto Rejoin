@@ -1,72 +1,37 @@
 --[[
-    Auto Reconnect By Ambatukam
-    Force Reconnect v3
+    Ambatukam Rejoin
+    Automatic Retry
     Delta Mobile
 ]]
 
 repeat task.wait(1) until game:IsLoaded()
 
+local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
+local TeleportService = game:GetService("TeleportService")
+local GuiService = game:GetService("GuiService")
 
-local CONFIG = {
-    ScanInterval = 0.1,
-    RetryInterval = 0.1,
-    PromptWaitTimeout = 10,
-}
+local player = Players.LocalPlayer
+local placeId = game.PlaceId
 
-local RECONNECT_CODES = {
-    266,
-    268,
-    277,
-    279,
-    528,
-    769,
-}
+local retryInterval = 0.1
+local retryWindow = 10
 
-local running = true
-local activePrompts = {}
+local active = true
+local reconnecting = false
 
-print("Auto Reconnect By Ambatukam: Active")
+print("Ambatukam Rejoin: Active")
 
-local function readPromptText(prompt)
-    local parts = {}
+local function isErrorPromptVisible()
+    local promptGui = CoreGui:FindFirstChild("RobloxPromptGui")
+    local overlay = promptGui and promptGui:FindFirstChild("promptOverlay")
 
-    local function collectText(obj)
-        if obj:IsA("TextLabel")
-            or obj:IsA("TextButton")
-            or obj:IsA("TextBox")
-        then
-            local value = obj.Text
-
-            if type(value) == "string" and value ~= "" then
-                table.insert(parts, value)
-            end
-        end
+    if not overlay then
+        return false
     end
 
-    collectText(prompt)
-
-    for _, obj in ipairs(prompt:GetDescendants()) do
-        collectText(obj)
-    end
-
-    return table.concat(parts, " ")
-end
-
-local function containsCode(message, code)
-    local pattern = "%f[%d]" .. tostring(code) .. "%f[^%d]"
-    return string.find(message, pattern) ~= nil
-end
-
-local function shouldReconnect(message)
-    local normalized = string.lower(message)
-
-    if string.find(normalized, "disconnected", 1, true) then
-        return true
-    end
-
-    for _, code in ipairs(RECONNECT_CODES) do
-        if containsCode(normalized, code) then
+    for _, child in ipairs(overlay:GetChildren()) do
+        if child.Name == "ErrorPrompt" then
             return true
         end
     end
@@ -74,138 +39,57 @@ local function shouldReconnect(message)
     return false
 end
 
-local function findReconnectButton(prompt)
-    for _, obj in ipairs(prompt:GetDescendants()) do
-        if obj:IsA("TextButton") then
-            local text = string.lower(
-                (obj.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
-            )
-
-            if text == "reconnect" or text == "rejoin" then
-                return obj
-            end
-        end
-    end
-
-    return nil
-end
-
-local function clickReconnect(button)
-    -- Executor compatibility varies.
-    -- Try the available signal function if supported.
-    if type(firesignal) == "function" then
-        local ok = pcall(function()
-            firesignal(button.Activated)
-        end)
-
-        if ok then
-            return true
-        end
-
-        ok = pcall(function()
-            firesignal(button.MouseButton1Click)
-        end)
-
-        if ok then
-            return true
-        end
-    end
-
-    return false
-end
-
-local function forceReconnect(prompt)
-    if activePrompts[prompt] then
+local function startReconnect()
+    if reconnecting or not active then
         return
     end
 
-    activePrompts[prompt] = true
+    reconnecting = true
 
     task.spawn(function()
-        local started = os.clock()
+        while active and isErrorPromptVisible() do
+            local cycleStart = os.clock()
 
-        while running
-            and prompt.Parent
-            and os.clock() - started < CONFIG.PromptWaitTimeout
-        do
-            local message = readPromptText(prompt)
-
-            if not shouldReconnect(message) then
-                task.wait(CONFIG.ScanInterval)
-                continue
-            end
-
-            local button = findReconnectButton(prompt)
-
-            if button and button.Visible and button.Active then
-                if clickReconnect(button) then
-                    print("Auto Reconnect: Reconnect clicked")
-
-                    -- Allow Roblox to begin reconnecting.
-                    task.wait(1)
-                else
-                    warn(
-                        "Auto Reconnect: Executor could not trigger button"
-                    )
-                    task.wait(CONFIG.RetryInterval)
+            repeat
+                if not active or not isErrorPromptVisible() then
+                    break
                 end
-            else
-                task.wait(CONFIG.RetryInterval)
-            end
+
+                pcall(function()
+                    TeleportService:Teleport(placeId, player)
+                end)
+
+                task.wait(retryInterval)
+            until os.clock() - cycleStart >= retryWindow
+
+            task.wait(retryInterval)
         end
 
-        activePrompts[prompt] = nil
+        reconnecting = false
     end)
 end
 
 task.spawn(function()
-    local promptGui = CoreGui:WaitForChild(
-        "RobloxPromptGui",
-        30
-    )
-
-    if not promptGui or not running then
-        return
-    end
-
-    local overlay = promptGui:WaitForChild(
-        "promptOverlay",
-        15
-    )
-
-    if not overlay or not running then
-        return
-    end
-
-    local function inspectPrompt(child)
-        if child.Name == "ErrorPrompt" then
-            task.spawn(function()
-                for _ = 1, 10 do
-                    if not running or not child.Parent then
-                        return
-                    end
-
-                    local message = readPromptText(child)
-
-                    if message ~= "" then
-                        if shouldReconnect(message) then
-                            forceReconnect(child)
-                        end
-
-                        return
-                    end
-
-                    task.wait(CONFIG.ScanInterval)
-                end
-            end)
+    while active do
+        if isErrorPromptVisible() then
+            startReconnect()
         end
-    end
 
-    for _, child in ipairs(overlay:GetChildren()) do
-        inspectPrompt(child)
+        task.wait(retryInterval)
     end
-
-    overlay.ChildAdded:Connect(inspectPrompt)
 end)
 
-print("Auto Reconnect: Monitoring Disconnected prompts")
+pcall(function()
+    GuiService.ErrorMessageChanged:Connect(function(message)
+        if message and message ~= "" then
+            startReconnect()
+        end
+    end)
+end)
+
+player.OnTeleport:Connect(function(state)
+    if state == Enum.TeleportState.Started
+        or state == Enum.TeleportState.InProgress then
+        print("Ambatukam Rejoin: Teleport started")
+    end
+end)
