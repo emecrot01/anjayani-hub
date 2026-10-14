@@ -14,7 +14,7 @@ local GuiService = game:GetService("GuiService")
 local player = Players.LocalPlayer
 local placeId = game.PlaceId
 
-local retryInterval = 0.1
+local retryInterval = 1
 local retryWindow = 10
 
 local active = true
