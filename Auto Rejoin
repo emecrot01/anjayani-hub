@@ -1,10 +1,11 @@
+
 --[[
-    Ambatukam Rejoin
-    Automatic Retry
+    Ambatukam Rejoin v3
+    Fast Network Error Recovery
     Delta Mobile
 ]]
 
-repeat task.wait(0.5) until game:IsLoaded()
+repeat task.wait(0.25) until game:IsLoaded()
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
@@ -14,82 +15,137 @@ local GuiService = game:GetService("GuiService")
 local player = Players.LocalPlayer
 local placeId = game.PlaceId
 
-local retryInterval = 0.5
-local retryWindow = 10
+-- Configuration
+local CHECK_INTERVAL = 0.25
+local RETRY_INTERVAL = 0.5
+local MAX_RETRIES = 5
 
 local active = true
 local reconnecting = false
+local teleportStarted = false
+local retryCount = 0
 
-print("Ambatukam Rejoin: Active")
+print("[Ambatukam] Rejoin system active")
 
-local function isErrorPromptVisible()
+-- Find Roblox error prompt recursively
+local function getErrorPrompt()
     local promptGui = CoreGui:FindFirstChild("RobloxPromptGui")
-    local overlay = promptGui and promptGui:FindFirstChild("promptOverlay")
-
-    if not overlay then
-        return false
+    if not promptGui then
+        return nil
     end
 
-    for _, child in ipairs(overlay:GetChildren()) do
-        if child.Name == "ErrorPrompt" then
-            return true
+    local overlay = promptGui:FindFirstChild("promptOverlay", true)
+    if not overlay then
+        return nil
+    end
+
+    for _, obj in ipairs(overlay:GetDescendants()) do
+        if obj.Name == "ErrorPrompt"
+            and obj:IsA("GuiObject") then
+
+            local visible = obj.Visible
+            local parent = obj.Parent
+
+            while visible and parent and parent ~= promptGui do
+                if parent:IsA("GuiObject") then
+                    visible = parent.Visible
+                elseif parent:IsA("ScreenGui") then
+                    visible = parent.Enabled
+                end
+
+                parent = parent.Parent
+            end
+
+            if visible then
+                return obj
+            end
         end
     end
 
-    return false
+    return nil
+end
+
+local function isErrorPromptVisible()
+    return getErrorPrompt() ~= nil
 end
 
 local function startReconnect()
-    if reconnecting or not active then
+    if reconnecting or not active or teleportStarted then
         return
     end
 
     reconnecting = true
+    retryCount = 0
 
     task.spawn(function()
-        while active and isErrorPromptVisible() do
-            local cycleStart = os.clock()
+        print("[Ambatukam] Network error detected")
 
-            repeat
-                if not active or not isErrorPromptVisible() then
-                    break
-                end
+        while active
+            and not teleportStarted
+            and isErrorPromptVisible()
+            and retryCount < MAX_RETRIES do
 
-                pcall(function()
-                    TeleportService:Teleport(placeId, player)
-                end)
+            retryCount += 1
 
-                task.wait(retryInterval)
-            until os.clock() - cycleStart >= retryWindow
+            print(string.format(
+                "[Ambatukam] Reconnect attempt %d/%d",
+                retryCount,
+                MAX_RETRIES
+            ))
 
-            task.wait(retryInterval)
+            local ok, err = pcall(function()
+                TeleportService:Teleport(placeId, player)
+            end)
+
+            if not ok then
+                warn("[Ambatukam] Teleport request failed:", err)
+            end
+
+            task.wait(RETRY_INTERVAL)
+        end
+
+        if retryCount >= MAX_RETRIES and isErrorPromptVisible() then
+            warn("[Ambatukam] Retry limit reached")
         end
 
         reconnecting = false
     end)
 end
 
+-- Monitor error UI
 task.spawn(function()
-    while active do
+    while active and not teleportStarted do
         if isErrorPromptVisible() then
             startReconnect()
         end
 
-        task.wait(retryInterval)
+        task.wait(CHECK_INTERVAL)
     end
 end)
 
+-- Monitor Roblox error messages
 pcall(function()
     GuiService.ErrorMessageChanged:Connect(function(message)
         if message and message ~= "" then
-            startReconnect()
+            print("[Ambatukam] Error message changed")
+
+            task.defer(function()
+                if isErrorPromptVisible() then
+                    startReconnect()
+                end
+            end)
         end
     end)
 end)
 
+-- Stop retrying once teleport begins
 player.OnTeleport:Connect(function(state)
+    print("[Ambatukam] Teleport state:", state.Name)
+
     if state == Enum.TeleportState.Started
         or state == Enum.TeleportState.InProgress then
-        print("Ambatukam Rejoin: Teleport started")
+
+        teleportStarted = true
+        active = false
     end
 end)
