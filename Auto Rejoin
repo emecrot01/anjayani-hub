@@ -4,7 +4,7 @@
     Delta Mobile
 ]]
 
-repeat task.wait(1) until game:IsLoaded()
+repeat task.wait(0.5) until game:IsLoaded()
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
@@ -14,7 +14,7 @@ local GuiService = game:GetService("GuiService")
 local player = Players.LocalPlayer
 local placeId = game.PlaceId
 
-local retryInterval = 1
+local retryInterval = 0.5
 local retryWindow = 10
 
 local active = true
